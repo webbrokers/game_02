@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --bg-top: #10141e;
     --bg-bottom: #03060d;
     --panel-top: #232839;
@@ -299,7 +299,7 @@ body.menu-screen {
 .playfield {
     width: 800px;
     height: 640px;
-    background: #050608 url('images/desert-map.png') center / cover no-repeat;
+    background: #050608 url('images/map-01.png') center / cover no-repeat;
     border: 2px solid rgba(0, 0, 0, 0.75);
     box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.65);
     image-rendering: pixelated;
@@ -353,5 +353,100 @@ body.menu-screen {
     .retro-button,
     .retro-button.ghost {
         width: 100%;
+    }
+}
+body.menu-screen.play-screen {
+    padding: 4rem 0;
+}
+
+.play-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.75rem;
+    background: linear-gradient(180deg, #1b2130, #04070d);
+    border: 2px solid #1b2130;
+    border-top-color: #757c94;
+    border-left-color: #5a6175;
+    border-bottom-width: 4px;
+    border-radius: 12px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.7);
+}
+
+.play-hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 800px;
+    height: 30px;
+    padding: 0 1rem;
+    background: linear-gradient(180deg, #2c3245 0%, #111622 100%);
+    border: 1px solid rgba(13, 18, 31, 0.9);
+    border-top-color: rgba(167, 177, 208, 0.35);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.play-logo {
+    font-size: 0.7rem;
+    letter-spacing: 0.22rem;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(255, 213, 74, 0.7), 0 0 18px rgba(255, 213, 74, 0.45);
+    white-space: nowrap;
+}
+
+.play-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88px;
+    height: 22px;
+    padding: 0 1rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.16rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--text-light);
+    background: linear-gradient(180deg, var(--button-top), var(--button-bottom));
+    border: 2px solid var(--button-shadow);
+    border-top-color: var(--button-highlight);
+    border-left-color: #a2a8bc;
+    border-right-color: #262c3c;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    box-shadow: 0 4px 0 #03050b, 0 6px 14px rgba(0, 0, 0, 0.6);
+    transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.play-menu-button:hover,
+.play-menu-button:focus {
+    filter: brightness(1.08);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #03050b, 0 10px 16px rgba(0, 0, 0, 0.65);
+}
+
+.play-menu-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 0 #03050b, 0 6px 10px rgba(0, 0, 0, 0.6);
+}
+
+body.play-screen .playfield {
+    width: 800px;
+    height: 640px;
+    border-radius: 10px;
+}
+
+@media (max-width: 720px) {
+    body.menu-screen.play-screen {
+        padding: 2.5rem 0;
+    }
+
+    .play-shell {
+        padding: 1.25rem;
+    }
+
+    .play-hud {
+        padding: 0 0.75rem;
     }
 }
