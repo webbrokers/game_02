@@ -1,18 +1,11 @@
-:root {
-    --bg-top: #10141e;
-    --bg-bottom: #03060d;
-    --panel-top: #232839;
-    --panel-bottom: #090c14;
-    --border-light: #6f7890;
-    --border-dark: #080a11;
-    --button-top: #5f667b;
-    --button-bottom: #2e3647;
-    --button-highlight: #c7cce0;
-    --button-shadow: #111520;
-    --button-ghost: rgba(95, 102, 123, 0.2);
-    --text-light: #f4f7ff;
-    --text-muted: rgba(244, 247, 255, 0.75);
-    --accent: #ffd54a;
+﻿:root {
+    --playfield-width: 1024px;
+    --playfield-height: 800px;
+    --world-width: 1536px;
+    --world-height: 1536px;
+    --tank-length: 118px;
+    --tank-width: 72px;
+    --tank-size: var(--tank-length);
 }
 
 * {
@@ -297,28 +290,205 @@ body.menu-screen {
 }
 
 .playfield {
-    width: 800px;
-    height: 640px;
-    background: #050608 url('images/map-01.png') center / cover no-repeat;
+    width: var(--playfield-width);
+    height: var(--playfield-height);
+    position: relative;
+    overflow: hidden;
+    background: #050608;
     border: 2px solid rgba(0, 0, 0, 0.75);
+    border-radius: 12px;
     box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.65);
     image-rendering: pixelated;
+    cursor: crosshair;
+    touch-action: none;
 }
 
-.button-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 1.5rem;
+.playfield__viewport {
+    position: relative;
     width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: inherit;
 }
 
-@media (max-width: 900px) {
-    .playfield {
-        width: 100%;
-        max-width: 800px;
-        aspect-ratio: 5 / 4;
-        height: auto;
-    }
+.playfield__world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--world-width);
+    height: var(--world-height);
+    background: #050608 url('images/map-01.png') top left / 100% 100% no-repeat;
+    image-rendering: inherit;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+}
+
+.tank {
+    position: absolute;
+    width: var(--tank-width);
+    height: var(--tank-length);
+    transform-origin: 50% 50%;
+    pointer-events: none;
+    --tank-rotation: 0rad;
+}
+
+.tank__reload {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    width: calc(var(--tank-width) * 0.95);
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(14, 18, 12, 0.85);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+    transform: translate(-50%, -12px) rotate(calc(-1 * var(--tank-rotation, 0rad)));
+    transform-origin: 50% 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.tank__reload-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #8dd05f 0%, #4fb54c 50%, #3b7f2e 100%);
+    transform-origin: left center;
+    transition: width 0.08s linear;
+}
+
+.tank__body {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--tank-width) * 0.9);
+    height: calc(var(--tank-length) * 0.82);
+    background: linear-gradient(180deg, #4f5a3d 0%, #2a3322 60%, #1b2216 100%);
+    border-radius: 22px;
+    transform: translate(-50%, -50%);
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.55), 0 10px 16px rgba(0, 0, 0, 0.6);
+    overflow: visible;
+}
+
+.tank__body::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 62%;
+    height: 30%;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(135, 149, 101, 0.9) 0%, rgba(86, 96, 68, 0.85) 60%, rgba(35, 41, 26, 0.95) 100%);
+    border-radius: 18px 18px 12px 12px;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.45);
+}
+
+.tank__body::after {
+    content: "";
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    width: 70%;
+    height: 18%;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(24, 30, 17, 0.95) 0%, rgba(57, 67, 41, 0.6) 55%, rgba(19, 23, 14, 0.95) 100%);
+    border-radius: 10px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.tank__fuel {
+    position: absolute;
+    bottom: calc(var(--tank-length) * -0.12);
+    width: calc(var(--tank-width) * 0.28);
+    height: calc(var(--tank-length) * 0.26);
+    background: linear-gradient(180deg, #7a5b33 0%, #3e2a13 100%);
+    border-radius: 18px;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.55), 0 6px 10px rgba(0, 0, 0, 0.5);
+    left: 50%;
+    transform-origin: 50% 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.tank__fuel::after {
+    content: "";
+    position: absolute;
+    inset: 18% 12% 14% 12%;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 215, 141, 0.35) 0%, rgba(255, 183, 77, 0.15) 60%, rgba(61, 35, 13, 0.65) 100%);
+}
+
+.tank__fuel--left {
+    transform: translate(-160%, 0);
+}
+
+.tank__fuel--right {
+    transform: translate(60%, 0);
+}
+
+.tank__turret {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--tank-width) * 0.58);
+    height: calc(var(--tank-width) * 0.58);
+    background: radial-gradient(circle at 32% 32%, #6f7a55 0%, #4d553c 60%, #2b311f 100%);
+    border: 2px solid rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    transform: translate(-50%, -58%) rotate(var(--turret-rotation, 0rad));
+    transform-origin: 50% 50%;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+    z-index: 2;
+}
+
+.tank__turret::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 28%;
+    height: 28%;
+    background: rgba(0, 0, 0, 0.28);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.tank__barrel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--tank-length) * 0.5);
+    height: calc(var(--tank-width) * 0.2);
+    background: linear-gradient(180deg, #6a7455 0%, #3d452d 100%);
+    border-radius: 6px 16px 16px 6px;
+    transform: translate(8%, -50%);
+    transform-origin: 0% 50%;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.tank__barrel::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 196, 122, 0.45);
+    transform: translateY(-50%);
+}
+
+.projectile {
+    position: absolute;
+    width: 28px;
+    height: 6px;
+    background: linear-gradient(90deg, #ffd68a 0%, #f2b344 60%, #7a3c12 100%);
+    border-radius: 3px;
+    box-shadow: 0 0 12px rgba(248, 188, 96, 0.6);
+    transform-origin: 50% 50%;
+    pointer-events: none;
+    will-change: transform;
+    z-index: 3;
 }
 
 @media (max-width: 720px) {
@@ -378,7 +548,7 @@ body.menu-screen.play-screen {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 800px;
+    width: var(--playfield-width);
     height: 30px;
     padding: 0 1rem;
     background: linear-gradient(180deg, #2c3245 0%, #111622 100%);
@@ -431,11 +601,6 @@ body.menu-screen.play-screen {
     box-shadow: 0 2px 0 #03050b, 0 6px 10px rgba(0, 0, 0, 0.6);
 }
 
-body.play-screen .playfield {
-    width: 800px;
-    height: 640px;
-    border-radius: 10px;
-}
 
 @media (max-width: 720px) {
     body.menu-screen.play-screen {
@@ -449,4 +614,44 @@ body.play-screen .playfield {
     .play-hud {
         padding: 0 0.75rem;
     }
+}
+
+
+
+
+
+
+
+.enemy {
+    position: absolute;
+    width: 96px;
+    height: 96px;
+    transform-origin: 50% 50%;
+    background: radial-gradient(circle at 50% 40%, #b33939 0%, #6f1e1e 55%, #2d0c0c 100%);
+    border: 3px solid rgba(0, 0, 0, 0.55);
+    border-radius: 22px;
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.65), 0 14px 22px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    will-change: transform;
+}
+
+.enemy__health {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    width: 72%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 4px;
+    transform: translateX(-50%);
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.enemy__health-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff7a7a 0%, #ff3131 55%, #991515 100%);
+    transform-origin: left center;
+    transition: width 0.1s linear;
 }

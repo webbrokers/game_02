@@ -16,7 +16,25 @@
             <span class="play-logo">WAR TANKS II</span>
             <a class="play-menu-button" href="menu.html">МЕНЮ</a>
         </div>
-        <div class="playfield" role="img" aria-label="Игровая карта Desert Strike"></div>
+        <div class="playfield" role="application" aria-label="Игровая карта Desert Strike">
+            <div class="playfield__viewport">
+                <div class="playfield__world">
+                    <div class="tank" role="img" aria-label="Боевой танк">
+                        <div class="tank__reload" role="progressbar" aria-label="Индикатор перезарядки" aria-valuemin="0" aria-valuемax="1" aria-valuенов="1">
+                            <div class="tank__reload-bar"></div>
+                        </div>
+                        <div class="tank__body">
+                            <div class="tank__fuel tank__fuel--left" aria-hidden="true"></div>
+                            <div class="tank__fuel tank__fuel--right" aria-hidden="true"></div>
+                        </div>
+                        <div class="tank__turret">
+                            <div class="tank__barrel"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 </body>
 </html>
+
