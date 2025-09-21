@@ -272,6 +272,11 @@
         tankRoot.appendChild(chassis);
         playfield.appendChild(tankRoot);
 
+        const fogCanvas = document.createElement("canvas");
+        fogCanvas.className = "playfield__fog";
+        const fogCtx = fogCanvas.getContext("2d");
+        playfield.appendChild(fogCanvas);
+
         const tankState = {
             x: playfield.clientWidth / 2,
             y: playfield.clientHeight / 2,
@@ -304,6 +309,128 @@
         const halfChassisWidth = 40;
         const halfChassisHeight = 48;
         const bulletHalfSize = 5;
+        const FOG_CELL_SIZE = 16;
+        const FOG_RESTORE_SECONDS = 3;
+        const FOG_BASE_ALPHA = 0.45;
+        const tankBaseSize = Math.max(halfChassisWidth, halfChassisHeight);
+        const fogInnerRadius = tankBaseSize * 5;
+        const fogFalloffRadius = tankBaseSize * 2;
+        const fogOuterRadius = fogInnerRadius + fogFalloffRadius;
+        let fogCols = 0;
+        let fogRows = 0;
+        let fogAlpha = new Float32Array(0);
+
+        const initializeFogGrid = () => {
+            const width = playfield.clientWidth;
+            const height = playfield.clientHeight;
+            fogCanvas.width = width;
+            fogCanvas.height = height;
+            fogCols = Math.ceil(width / FOG_CELL_SIZE);
+            fogRows = Math.ceil(height / FOG_CELL_SIZE);
+            fogAlpha = new Float32Array(fogCols * fogRows);
+            if (fogCtx) {
+                fogCtx.clearRect(0, 0, width, height);
+            }
+        };
+
+        const ensureFogGrid = () => {
+            if (
+                fogCanvas.width !== playfield.clientWidth ||
+                fogCanvas.height !== playfield.clientHeight ||
+                fogAlpha.length === 0
+            ) {
+                initializeFogGrid();
+            }
+        };
+
+        const updateFogField = (deltaSeconds) => {
+            ensureFogGrid();
+            if (!fogCtx || fogCols === 0 || fogRows === 0) {
+                return;
+            }
+
+            if (deltaSeconds > 0) {
+                const decay = deltaSeconds / FOG_RESTORE_SECONDS;
+                for (let i = 0; i < fogAlpha.length; i += 1) {
+                    const value = fogAlpha[i] - decay;
+                    fogAlpha[i] = value > 0 ? value : 0;
+                }
+            }
+
+            const minCol = Math.max(0, Math.floor((tankState.x - fogOuterRadius) / FOG_CELL_SIZE));
+            const maxCol = Math.min(fogCols - 1, Math.floor((tankState.x + fogOuterRadius) / FOG_CELL_SIZE));
+            const minRow = Math.max(0, Math.floor((tankState.y - fogOuterRadius) / FOG_CELL_SIZE));
+            const maxRow = Math.min(fogRows - 1, Math.floor((tankState.y + fogOuterRadius) / FOG_CELL_SIZE));
+
+            const innerRadiusSq = fogInnerRadius * fogInnerRadius;
+            const outerRadiusSq = fogOuterRadius * fogOuterRadius;
+            const falloffRange = fogOuterRadius - fogInnerRadius || 1;
+            const cellHalf = FOG_CELL_SIZE / 2;
+
+            for (let row = minRow; row <= maxRow; row += 1) {
+                const centerY = row * FOG_CELL_SIZE + cellHalf;
+                const dy = centerY - tankState.y;
+                const dySq = dy * dy;
+                for (let col = minCol; col <= maxCol; col += 1) {
+                    const centerX = col * FOG_CELL_SIZE + cellHalf;
+                    const dx = centerX - tankState.x;
+                    const distSq = dx * dx + dySq;
+                    if (distSq > outerRadiusSq) {
+                        continue;
+                    }
+
+                    let influence = 0;
+                    if (distSq <= innerRadiusSq) {
+                        influence = 1;
+                    } else {
+                        const dist = Math.sqrt(distSq);
+                        influence = 1 - (dist - fogInnerRadius) / falloffRange;
+                    }
+
+                    const index = row * fogCols + col;
+                    if (influence > fogAlpha[index]) {
+                        fogAlpha[index] = influence;
+                    }
+                }
+            }
+        };
+
+        const renderFog = (deltaSeconds) => {
+            if (!fogCtx) {
+                return;
+            }
+
+            updateFogField(deltaSeconds);
+
+            const { width, height } = fogCanvas;
+            fogCtx.clearRect(0, 0, width, height);
+            fogCtx.globalCompositeOperation = "source-over";
+            fogCtx.globalAlpha = 1;
+            fogCtx.fillStyle = `rgba(8, 11, 16, ${FOG_BASE_ALPHA})`;
+            fogCtx.fillRect(0, 0, width, height);
+
+            fogCtx.globalCompositeOperation = "destination-out";
+            const cellHalf = FOG_CELL_SIZE / 2;
+            const baseRadius = FOG_CELL_SIZE * 0.9;
+            for (let row = 0; row < fogRows; row += 1) {
+                const centerY = row * FOG_CELL_SIZE + cellHalf;
+                for (let col = 0; col < fogCols; col += 1) {
+                    const alpha = fogAlpha[row * fogCols + col];
+                    if (alpha <= 0) {
+                        continue;
+                    }
+
+                    const centerX = col * FOG_CELL_SIZE + cellHalf;
+                    fogCtx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+                    fogCtx.beginPath();
+                    fogCtx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+                    fogCtx.fill();
+                }
+            }
+
+            fogCtx.globalCompositeOperation = "source-over";
+            fogCtx.globalAlpha = 1;
+        };
 
         const updateTankTransform = () => {
             tankRoot.style.transform = `translate3d(${tankState.x}px, ${tankState.y}px, 0)`;
@@ -545,6 +672,7 @@
             updateTurretAngle(deltaSeconds);
             updateTankTransform();
             updateBullets(deltaSeconds);
+            renderFog(deltaSeconds);
 
             if ((overflowX !== 0 || overflowY !== 0) && !isDraggingField) {
                 shiftBackgroundByPixels(overflowX, overflowY);
@@ -558,7 +686,12 @@
         window.addEventListener("resize", () => {
             clampTankPosition();
             updateTankTransform();
+            initializeFogGrid();
+            renderFog(0);
         });
+
+        initializeFogGrid();
+        renderFog(0);
     }
 
     const forms = document.querySelectorAll("form");
