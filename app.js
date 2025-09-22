@@ -7,6 +7,140 @@
     const navigationDelay = 250;
     let isNavigating = false;
 
+    const TANK_PRESETS = Object.freeze({
+        tiger: Object.freeze({
+            id: "tiger",
+            displayName: "Tiger MK II",
+            variantClass: "tank--player tank--tiger-mk-ii",
+            defaults: Object.freeze({
+                moveSpeed: 220,
+                fireCooldown: 1.5,
+                damagePerHit: 0.2,
+            }),
+        }),
+        phantom: Object.freeze({
+            id: "phantom",
+            displayName: "FANTOM X",
+            variantClass: "tank--player tank--phantom-x",
+            defaults: Object.freeze({
+                moveSpeed: 280,
+                fireCooldown: 1.2,
+                damagePerHit: 0.16,
+            }),
+        }),
+        crusher: Object.freeze({
+            id: "crusher",
+            displayName: "CRUSHER 88",
+            variantClass: "tank--player tank--crusher-88",
+            defaults: Object.freeze({
+                moveSpeed: 170,
+                fireCooldown: 1.9,
+                damagePerHit: 0.26,
+            }),
+        }),
+    });
+    const DEFAULT_TANK_ID = "tiger";
+    const TANK_SETTINGS_STORAGE_KEY = "wt2:tank-settings";
+    const TANK_IDS = Object.keys(TANK_PRESETS);
+
+    const TANK_SETTINGS_LIMITS = Object.freeze({
+        moveSpeed: { min: 100, max: 400 },
+        fireCooldown: { min: 0.5, max: 5 },
+        damagePerHit: { min: 0.1, max: 1 },
+    });
+
+    const clampToRange = (value, { min, max }) => Math.min(max, Math.max(min, value));
+
+    const sanitizeSingleTankSettings = (rawSettings, defaults) => {
+        const safeSettings = { ...defaults };
+        if (!rawSettings || typeof rawSettings !== "object") {
+            return safeSettings;
+        }
+
+        ["moveSpeed", "fireCooldown", "damagePerHit"].forEach((key) => {
+            const ranges = TANK_SETTINGS_LIMITS[key];
+            const candidate = Number(rawSettings[key]);
+            if (Number.isFinite(candidate)) {
+                safeSettings[key] = clampToRange(candidate, ranges);
+            }
+        });
+
+        return safeSettings;
+    };
+
+    const sanitizeTankSettingsMap = (rawSettingsMap) => {
+        const safeMap = {};
+        TANK_IDS.forEach((id) => {
+            const defaults = TANK_PRESETS[id].defaults;
+            const rawSettings = rawSettingsMap && typeof rawSettingsMap === "object" ? rawSettingsMap[id] : undefined;
+            safeMap[id] = sanitizeSingleTankSettings(rawSettings, defaults);
+        });
+        return safeMap;
+    };
+
+    const loadTankSettings = () => {
+        try {
+            const storage = window.localStorage;
+            if (!storage) {
+                return sanitizeTankSettingsMap(null);
+            }
+
+            const raw = storage.getItem(TANK_SETTINGS_STORAGE_KEY);
+            if (!raw) {
+                return sanitizeTankSettingsMap(null);
+            }
+
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const isLegacyShape = Object.keys(parsed).every((key) =>
+                    Object.prototype.hasOwnProperty.call(TANK_SETTINGS_LIMITS, key),
+                );
+
+                if (isLegacyShape) {
+                    return sanitizeTankSettingsMap(
+                        Object.fromEntries(TANK_IDS.map((id) => [id, parsed])),
+                    );
+                }
+
+                return sanitizeTankSettingsMap(parsed);
+            }
+        } catch (error) {
+            /* Ignore storage errors */
+        }
+
+        return sanitizeTankSettingsMap(null);
+    };
+
+    const saveTankSettings = (settingsMap) => {
+        const sanitized = sanitizeTankSettingsMap(settingsMap);
+        try {
+            const storage = window.localStorage;
+            if (!storage) {
+                return sanitized;
+            }
+
+            storage.setItem(TANK_SETTINGS_STORAGE_KEY, JSON.stringify(sanitized));
+        } catch (error) {
+            /* Persistence can fail in private mode; ignore */
+        }
+
+        return sanitized;
+    };
+
+    const resolveSelectedTankPreset = () => {
+        try {
+            const params = new URLSearchParams(window.location.search || "");
+            const requestedId = params.get("tank");
+            if (requestedId && Object.prototype.hasOwnProperty.call(TANK_PRESETS, requestedId)) {
+                return TANK_PRESETS[requestedId];
+            }
+        } catch (error) {
+            /* Ignore malformed query strings */
+        }
+
+        return TANK_PRESETS[DEFAULT_TANK_ID];
+    };
+
     const scheduleNavigation = (task, { reset = false } = {}) => {
         isNavigating = true;
         window.setTimeout(() => {
@@ -67,6 +201,75 @@
         playSfx(instance);
     };
 
+    const submitFormWithOverrides = (form, submitter) => {
+        if (!form) {
+            return;
+        }
+
+        const original = {
+            action: form.getAttribute("action"),
+            method: form.getAttribute("method"),
+            target: form.getAttribute("target"),
+            enctype: form.getAttribute("enctype"),
+        };
+
+        if (submitter instanceof HTMLElement) {
+            const applyOverride = (attr, value) => {
+                if (value === null) {
+                    return;
+                }
+
+                form.setAttribute(attr, value);
+            };
+
+            if (submitter.hasAttribute("formaction")) {
+                applyOverride("action", submitter.getAttribute("formaction"));
+            }
+
+            if (submitter.hasAttribute("formmethod")) {
+                applyOverride("method", submitter.getAttribute("formmethod"));
+            }
+
+            if (submitter.hasAttribute("formtarget")) {
+                applyOverride("target", submitter.getAttribute("formtarget"));
+            }
+
+            if (submitter.hasAttribute("formenctype")) {
+                applyOverride("enctype", submitter.getAttribute("formenctype"));
+            }
+        }
+
+        const shouldTriggerSubmitHandlers = form.matches(".settings-form");
+        const performNativeSubmit = () => {
+            if (shouldTriggerSubmitHandlers && typeof form.requestSubmit === "function") {
+                form.requestSubmit(submitter);
+                return;
+            }
+
+            if (shouldTriggerSubmitHandlers) {
+                const submitEvent = new Event("submit", { cancelable: true });
+                const notCancelled = form.dispatchEvent(submitEvent);
+                if (!notCancelled) {
+                    return;
+                }
+            }
+
+            form.submit();
+        };
+
+        performNativeSubmit();
+
+        window.setTimeout(() => {
+            Object.entries(original).forEach(([attr, value]) => {
+                if (value === null) {
+                    form.removeAttribute(attr);
+                } else {
+                    form.setAttribute(attr, value);
+                }
+            });
+        }, 0);
+    };
+
     const wiredInteractiveElements = new WeakSet();
     const registerInteractiveElement = (element) => {
         if (!element || wiredInteractiveElements.has(element)) {
@@ -112,7 +315,7 @@
 
                 event.preventDefault();
                 scheduleNavigation(() => {
-                    form.submit();
+                    submitFormWithOverrides(form, element);
                 });
             }
         });
@@ -121,135 +324,139 @@
     const interactiveButtons = document.querySelectorAll(".menu-link, .retro-button, .play-menu-button");
     interactiveButtons.forEach(registerInteractiveElement);
 
+    const settingsForm = document.querySelector(".settings-form");
+    if (settingsForm) {
+        const tankSettingsMap = loadTankSettings();
+        const feedback = settingsForm.querySelector(".settings-feedback");
+        const inputs = Array.from(settingsForm.querySelectorAll("input[data-tank-id][data-field]"));
+
+        const writeFeedback = (message = "") => {
+            if (!feedback) {
+                return;
+            }
+
+            feedback.textContent = message;
+        };
+
+        const applySettingsToInputs = () => {
+            inputs.forEach((input) => {
+                const { tankId, field } = input.dataset;
+                if (!tankId || !field || !Object.prototype.hasOwnProperty.call(TANK_PRESETS, tankId)) {
+                    return;
+                }
+
+                const preset = TANK_PRESETS[tankId];
+                const settings = tankSettingsMap[tankId] || preset.defaults;
+                const value = settings[field];
+
+                if (value !== undefined) {
+                    input.value = value;
+                }
+            });
+        };
+
+        applySettingsToInputs();
+
+        inputs.forEach((input) => {
+            input.addEventListener("input", () => {
+                writeFeedback("");
+            });
+        });
+
+        settingsForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+
+            if (typeof settingsForm.reportValidity === "function" && !settingsForm.reportValidity()) {
+                isNavigating = false;
+                return;
+            }
+
+            const nextSettingsMap = {};
+
+            TANK_IDS.forEach((id) => {
+                nextSettingsMap[id] = { ...tankSettingsMap[id] };
+            });
+
+            inputs.forEach((input) => {
+                const { tankId, field } = input.dataset;
+                if (!tankId || !field || !Object.prototype.hasOwnProperty.call(TANK_PRESETS, tankId)) {
+                    return;
+                }
+
+                if (!nextSettingsMap[tankId]) {
+                    nextSettingsMap[tankId] = { ...TANK_PRESETS[tankId].defaults };
+                }
+
+                const numericValue = Number(input.value);
+                nextSettingsMap[tankId][field] = Number.isFinite(numericValue)
+                    ? numericValue
+                    : TANK_PRESETS[tankId].defaults[field];
+            });
+
+            const savedSettingsMap = saveTankSettings(nextSettingsMap);
+            Object.keys(savedSettingsMap).forEach((tankId) => {
+                tankSettingsMap[tankId] = savedSettingsMap[tankId];
+            });
+
+            applySettingsToInputs();
+            writeFeedback("Настройки сохранены");
+            isNavigating = false;
+        });
+    }
+
     const playfield = document.querySelector(".playfield");
     if (playfield) {
-        // Allow dragging the oversized background map inside the fixed viewport.
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-        let currentPosX = 50;
-        let currentPosY = 50;
-        let isDraggingField = false;
-        let activePointerId = null;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let dragOriginPosX = currentPosX;
-        let dragOriginPosY = currentPosY;
 
         const MAP_SCALE = 1.875;
-        const MAP_EXTRA_RATIO = MAP_SCALE - 1;
+        const BASE_VIEWPORT_WIDTH = 1024;
+        const BASE_VIEWPORT_HEIGHT = 800;
+        let viewportWidth = playfield.clientWidth;
+        let viewportHeight = playfield.clientHeight;
+        const worldWidth = Math.round(BASE_VIEWPORT_WIDTH * MAP_SCALE);
+        const worldHeight = Math.round(BASE_VIEWPORT_HEIGHT * MAP_SCALE);
 
-        const setBackgroundPosition = (x, y) => {
-            currentPosX = clamp(x, 0, 100);
-            currentPosY = clamp(y, 0, 100);
-            playfield.style.backgroundPosition = `${currentPosX}% ${currentPosY}%`;
+        const world = document.createElement("div");
+        world.className = "playfield__world";
+        world.style.width = `${worldWidth}px`;
+        world.style.height = `${worldHeight}px`;
+        playfield.appendChild(world);
+
+        const camera = { x: 0, y: 0 };
+        const cameraDeadzone = { left: 0, right: 0, top: 0, bottom: 0 };
+        const cameraBounds = {
+            maxX: Math.max(0, worldWidth - viewportWidth),
+            maxY: Math.max(0, worldHeight - viewportHeight),
         };
 
-        const shiftBackgroundByPixels = (deltaX, deltaY) => {
-            if (deltaX === 0 && deltaY === 0) {
-                return;
-            }
-
-            const fieldWidth = playfield.clientWidth;
-            const fieldHeight = playfield.clientHeight;
-            let targetPosX = currentPosX;
-            let targetPosY = currentPosY;
-
-            const extraWidth = fieldWidth * MAP_EXTRA_RATIO;
-            const extraHeight = fieldHeight * MAP_EXTRA_RATIO;
-
-            if (deltaX !== 0 && extraWidth > 0) {
-                targetPosX += (deltaX / extraWidth) * 100;
-            }
-
-            if (deltaY !== 0 && extraHeight > 0) {
-                targetPosY += (deltaY / extraHeight) * 100;
-            }
-
-            setBackgroundPosition(targetPosX, targetPosY);
+        const updateViewportMetrics = () => {
+            viewportWidth = playfield.clientWidth;
+            viewportHeight = playfield.clientHeight;
+            cameraDeadzone.left = viewportWidth * 0.25;
+            cameraDeadzone.right = viewportWidth * 0.25;
+            cameraDeadzone.top = viewportHeight * 0.28;
+            cameraDeadzone.bottom = viewportHeight * 0.28;
+            cameraBounds.maxX = Math.max(0, worldWidth - viewportWidth);
+            cameraBounds.maxY = Math.max(0, worldHeight - viewportHeight);
         };
 
-        setBackgroundPosition(currentPosX, currentPosY);
+        updateViewportMetrics();
 
-        playfield.addEventListener("pointerdown", (event) => {
-            if (event.button !== 0) {
-                return;
-            }
-
-            isDraggingField = true;
-            activePointerId = event.pointerId;
-            dragStartX = event.clientX;
-            dragStartY = event.clientY;
-            dragOriginPosX = currentPosX;
-            dragOriginPosY = currentPosY;
-            playfield.classList.add("is-dragging");
-
-            if (typeof playfield.setPointerCapture === "function") {
-                try {
-                    playfield.setPointerCapture(activePointerId);
-                } catch (error) {
-                    /* Pointer capture may fail in rare cases; safe to ignore */
-                }
-            }
-
-            event.preventDefault();
-        });
-
-        playfield.addEventListener("pointermove", (event) => {
-            if (!isDraggingField || event.pointerId !== activePointerId) {
-                return;
-            }
-
-            const fieldWidth = playfield.clientWidth;
-            const fieldHeight = playfield.clientHeight;
-            const extraWidth = fieldWidth * MAP_EXTRA_RATIO;
-            const extraHeight = fieldHeight * MAP_EXTRA_RATIO;
-
-            let nextX = dragOriginPosX;
-            let nextY = dragOriginPosY;
-
-            if (extraWidth > 0) {
-                const deltaX = event.clientX - dragStartX;
-                nextX = dragOriginPosX - (deltaX / extraWidth) * 100;
-            }
-
-            if (extraHeight > 0) {
-                const deltaY = event.clientY - dragStartY;
-                nextY = dragOriginPosY - (deltaY / extraHeight) * 100;
-            }
-
-            setBackgroundPosition(nextX, nextY);
-        });
-
-        const stopDraggingField = () => {
-            if (!isDraggingField) {
-                return;
-            }
-
-            isDraggingField = false;
-            playfield.classList.remove("is-dragging");
-
-            if (typeof playfield.releasePointerCapture === "function" && activePointerId !== null) {
-                try {
-                    playfield.releasePointerCapture(activePointerId);
-                } catch (error) {
-                    /* Ignore release errors */
-                }
-            }
-
-            activePointerId = null;
+        const clampCamera = () => {
+            camera.x = clamp(camera.x, 0, cameraBounds.maxX);
+            camera.y = clamp(camera.y, 0, cameraBounds.maxY);
         };
 
-        playfield.addEventListener("pointerup", (event) => {
-            if (event.pointerId === activePointerId) {
-                stopDraggingField();
-            }
-        });
+        const applyCameraTransform = () => {
+            world.style.transform = `translate3d(${-camera.x}px, ${-camera.y}px, 0)`;
+        };
 
-        playfield.addEventListener("pointercancel", stopDraggingField);
-        playfield.addEventListener("pointerleave", (event) => {
-            if (event.pointerId === activePointerId) {
-                stopDraggingField();
-            }
-        });
+        const centerCameraOn = (x, y) => {
+            camera.x = x - viewportWidth / 2;
+            camera.y = y - viewportHeight / 2;
+            clampCamera();
+            applyCameraTransform();
+        };
 
         const createTankElements = (variant) => {
             const root = document.createElement("div");
@@ -309,7 +516,7 @@
 
         const createTank = ({ x, y, variant, isPlayer }) => {
             const elements = createTankElements(variant);
-            playfield.appendChild(elements.root);
+            world.appendChild(elements.root);
             return {
                 elements,
                 state: {
@@ -325,16 +532,20 @@
             };
         };
 
+        const playerTankPreset = resolveSelectedTankPreset();
+
         const playerTank = createTank({
-            x: playfield.clientWidth / 2,
-            y: playfield.clientHeight / 2,
-            variant: "tank--player",
+            x: worldWidth / 2,
+            y: worldHeight / 2,
+            variant: playerTankPreset.variantClass || "tank--player",
             isPlayer: true,
         });
 
+        playerTank.state.presetId = playerTankPreset.id;
+
         const enemyTank = createTank({
-            x: playfield.clientWidth * 0.75,
-            y: playfield.clientHeight * 0.35,
+            x: worldWidth * 0.75,
+            y: worldHeight * 0.35,
             variant: "tank--enemy",
             isPlayer: false,
         });
@@ -356,10 +567,12 @@
             visibleToPlayer: false,
         };
 
+        centerCameraOn(tankState.x, tankState.y);
+
         const fogCanvas = document.createElement("canvas");
         fogCanvas.className = "playfield__fog";
         const fogCtx = fogCanvas.getContext("2d");
-        playfield.appendChild(fogCanvas);
+        world.appendChild(fogCanvas);
 
         const keyState = {
             forward: false,
@@ -370,9 +583,123 @@
         };
 
         const pointerState = {
-            x: tankState.x,
-            y: tankState.y - 120,
+            viewportX: clamp(tankState.x - camera.x, 0, viewportWidth),
+            viewportY: clamp(tankState.y - camera.y - 120, 0, viewportHeight),
+            worldX: tankState.x,
+            worldY: tankState.y - 120,
         };
+
+        const syncPointerWorldPosition = () => {
+            pointerState.worldX = clamp(pointerState.viewportX + camera.x, 0, worldWidth);
+            pointerState.worldY = clamp(pointerState.viewportY + camera.y, 0, worldHeight);
+        };
+
+        syncPointerWorldPosition();
+
+        const updateCameraForPlayer = ({ force = false } = {}) => {
+            const prevX = camera.x;
+            const prevY = camera.y;
+            const targetX = tankState.x;
+            const targetY = tankState.y;
+
+            const leftBoundary = camera.x + cameraDeadzone.left;
+            const rightBoundary = camera.x + viewportWidth - cameraDeadzone.right;
+            const topBoundary = camera.y + cameraDeadzone.top;
+            const bottomBoundary = camera.y + viewportHeight - cameraDeadzone.bottom;
+
+            if (targetX < leftBoundary) {
+                camera.x = targetX - cameraDeadzone.left;
+            } else if (targetX > rightBoundary) {
+                camera.x = targetX - (viewportWidth - cameraDeadzone.right);
+            }
+
+            if (targetY < topBoundary) {
+                camera.y = targetY - cameraDeadzone.top;
+            } else if (targetY > bottomBoundary) {
+                camera.y = targetY - (viewportHeight - cameraDeadzone.bottom);
+            }
+
+            clampCamera();
+
+            if (force || camera.x !== prevX || camera.y !== prevY) {
+                applyCameraTransform();
+                syncPointerWorldPosition();
+            }
+        };
+
+        const aimCursor = document.createElement("div");
+        aimCursor.className = "aim-cursor";
+        playfield.appendChild(aimCursor);
+        playfield.classList.remove("playfield--default-cursor");
+
+        let aimCursorVisible = false;
+        let isAimCursorLocked = false;
+
+        const updateAimCursorPosition = () => {
+            aimCursor.style.left = `${pointerState.viewportX}px`;
+            aimCursor.style.top = `${pointerState.viewportY}px`;
+        };
+
+        const showAimCursor = () => {
+            if (isAimCursorLocked || aimCursorVisible) {
+                return;
+            }
+
+            aimCursorVisible = true;
+            aimCursor.classList.add("aim-cursor--visible");
+        };
+
+        const hideAimCursor = () => {
+            if (!aimCursorVisible) {
+                return;
+            }
+
+            aimCursorVisible = false;
+            aimCursor.classList.remove("aim-cursor--visible");
+        };
+
+        updateAimCursorPosition();
+
+        updateCameraForPlayer({ force: true });
+
+        playfield.addEventListener("pointerenter", (event) => {
+            updatePointerFromEvent(event);
+            showAimCursor();
+        }, { capture: true });
+
+        playfield.addEventListener("pointerdown", (event) => {
+            if (event.button !== 0) {
+                return;
+            }
+
+            updatePointerFromEvent(event);
+            showAimCursor();
+            event.preventDefault();
+        });
+
+        playfield.addEventListener("pointerup", (event) => {
+            updatePointerFromEvent(event);
+
+            const width = viewportWidth;
+            const height = viewportHeight;
+            const isPointerInside =
+                pointerState.viewportX >= 0
+                && pointerState.viewportX <= width
+                && pointerState.viewportY >= 0
+                && pointerState.viewportY <= height;
+
+            if (!isPointerInside) {
+                hideAimCursor();
+            }
+        });
+
+        playfield.addEventListener("pointercancel", () => {
+            hideAimCursor();
+        });
+
+        playfield.addEventListener("pointerleave", () => {
+            hideAimCursor();
+        }, { capture: true });
 
         const MissionOutcome = Object.freeze({
             NONE: null,
@@ -454,11 +781,16 @@
         const DEG_TO_RAD = Math.PI / 180;
         const RAD_TO_DEG = 180 / Math.PI;
         const TURN_SPEED = 140;
-        const MOVE_SPEED = 220;
-        const FIRE_COOLDOWN = 1.5;
+        const tankSettingsMap = loadTankSettings();
+        const tankSettings = {
+            ...playerTankPreset.defaults,
+            ...tankSettingsMap[playerTankPreset.id],
+        };
+        const MOVE_SPEED = tankSettings.moveSpeed;
+        const FIRE_COOLDOWN = tankSettings.fireCooldown;
         const BULLET_SPEED = 580;
         const BULLET_LIFETIME = 2.2;
-        const DAMAGE_PER_HIT = 0.2;
+        const DAMAGE_PER_HIT = tankSettings.damagePerHit;
         const halfChassisWidth = 40;
         const halfChassisHeight = 48;
         const bulletHalfSize = 5;
@@ -483,11 +815,172 @@
 
         const randomInRange = (min, max) => Math.random() * (max - min) + min;
 
+        const barrels = [];
+        const MAX_BARRELS = 5;
+        const BARREL_RESPAWN_MIN = 6;
+        const BARREL_RESPAWN_MAX = 12;
+        const BARREL_HALF_WIDTH = 18;
+        const BARREL_HALF_HEIGHT = 22;
+        const BARREL_HIT_RADIUS = Math.max(BARREL_HALF_WIDTH, BARREL_HALF_HEIGHT) + 6;
+        const BARREL_TANK_AVOID_RADIUS = 140;
+        const BARREL_BARREL_AVOID_RADIUS = 100;
+        const BARREL_EXPLOSION_RADIUS = 150;
+        const BARREL_EXPLOSION_DAMAGE = 0.55;
+        let barrelSpawnTimer = randomInRange(0.75, 2.25);
+
+        const updateBarrelTransform = (barrel) => {
+            barrel.element.style.transform = `translate3d(${barrel.x - BARREL_HALF_WIDTH}px, ${barrel.y - BARREL_HALF_HEIGHT}px, 0)`;
+        };
+
+        const clampBarrelPosition = (barrel) => {
+            barrel.x = clamp(
+                barrel.x,
+                BARREL_HALF_WIDTH,
+                Math.max(BARREL_HALF_WIDTH, worldWidth - BARREL_HALF_WIDTH),
+            );
+            barrel.y = clamp(
+                barrel.y,
+                BARREL_HALF_HEIGHT,
+                Math.max(BARREL_HALF_HEIGHT, worldHeight - BARREL_HALF_HEIGHT),
+            );
+            updateBarrelTransform(barrel);
+        };
+
+        const spawnExplosionAt = (x, y, { variant = "large" } = {}) => {
+            const explosion = document.createElement("div");
+            explosion.className = `play-explosion play-explosion--${variant}`;
+            explosion.style.left = `${x}px`;
+            explosion.style.top = `${y}px`;
+            world.appendChild(explosion);
+
+            const cleanup = () => {
+                explosion.remove();
+            };
+
+            explosion.addEventListener("animationend", cleanup, { once: true });
+            window.setTimeout(() => {
+                if (explosion.isConnected) {
+                    cleanup();
+                }
+            }, 520);
+        };
+
+        const applyExplosionDamage = (centerX, centerY) => {
+            allTanks.forEach((tank) => {
+                if (tank.state.isDestroyed) {
+                    return;
+                }
+
+                const distance = Math.hypot(tank.state.x - centerX, tank.state.y - centerY);
+                if (distance > BARREL_EXPLOSION_RADIUS) {
+                    return;
+                }
+
+                const falloff = 1 - distance / BARREL_EXPLOSION_RADIUS;
+                const damage = BARREL_EXPLOSION_DAMAGE * (0.4 + falloff * 0.6);
+                applyDamage(tank, damage);
+            });
+        };
+
+        const triggerBarrelExplosion = (barrel, index) => {
+            barrels.splice(index, 1);
+            barrel.element.remove();
+            spawnExplosionAt(barrel.x, barrel.y);
+            applyExplosionDamage(barrel.x, barrel.y);
+            barrelSpawnTimer = randomInRange(BARREL_RESPAWN_MIN * 0.4, BARREL_RESPAWN_MIN);
+        };
+
+        const canPlaceBarrelAt = (x, y) => {
+            const withinField = x >= BARREL_HALF_WIDTH && y >= BARREL_HALF_HEIGHT
+                && x <= worldWidth - BARREL_HALF_WIDTH
+                && y <= worldHeight - BARREL_HALF_HEIGHT;
+
+            if (!withinField) {
+                return false;
+            }
+
+            for (let i = 0; i < barrels.length; i += 1) {
+                const other = barrels[i];
+                if (Math.hypot(other.x - x, other.y - y) < BARREL_BARREL_AVOID_RADIUS) {
+                    return false;
+                }
+            }
+
+            for (let i = 0; i < allTanks.length; i += 1) {
+                const tank = allTanks[i];
+                if (Math.hypot(tank.state.x - x, tank.state.y - y) < BARREL_TANK_AVOID_RADIUS) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        const spawnBarrel = () => {
+            if (barrels.length >= MAX_BARRELS) {
+                return false;
+            }
+
+            const fieldWidth = worldWidth;
+            const fieldHeight = worldHeight;
+            if (fieldWidth <= BARREL_HALF_WIDTH * 2 || fieldHeight <= BARREL_HALF_HEIGHT * 2) {
+                return false;
+            }
+
+            const marginX = Math.max(BARREL_HALF_WIDTH + 25, halfChassisWidth + 25);
+            const marginY = Math.max(BARREL_HALF_HEIGHT + 25, halfChassisHeight + 25);
+            const minX = marginX;
+            const maxX = Math.max(minX, fieldWidth - marginX);
+            const minY = marginY;
+            const maxY = Math.max(minY, fieldHeight - marginY);
+
+            for (let attempt = 0; attempt < 25; attempt += 1) {
+                const candidateX = randomInRange(minX, maxX);
+                const candidateY = randomInRange(minY, maxY);
+
+                if (!canPlaceBarrelAt(candidateX, candidateY)) {
+                    continue;
+                }
+
+                const barrelElement = document.createElement("div");
+                barrelElement.className = "fuel-barrel";
+                const barrelState = {
+                    x: candidateX,
+                    y: candidateY,
+                    element: barrelElement,
+                };
+                barrels.push(barrelState);
+                world.appendChild(barrelElement);
+                clampBarrelPosition(barrelState);
+                return true;
+            }
+
+            return false;
+        };
+
+        const updateBarrelSpawning = (deltaSeconds) => {
+            if (barrels.length >= MAX_BARRELS) {
+                barrelSpawnTimer = randomInRange(BARREL_RESPAWN_MIN, BARREL_RESPAWN_MAX);
+                return;
+            }
+
+            barrelSpawnTimer -= deltaSeconds;
+            if (barrelSpawnTimer > 0) {
+                return;
+            }
+
+            const spawned = spawnBarrel();
+            barrelSpawnTimer = randomInRange(
+                spawned ? BARREL_RESPAWN_MIN : 1.25,
+                spawned ? BARREL_RESPAWN_MAX : 2.75,
+            );
+        };
+
         const pickEnemySearchTarget = () => {
             const minX = halfChassisWidth;
-            const maxX = Math.max(minX, playfield.clientWidth - halfChassisWidth);
+            const maxX = Math.max(minX, worldWidth - halfChassisWidth);
             const minY = halfChassisHeight;
-            const maxY = Math.max(minY, playfield.clientHeight - halfChassisHeight);
+            const maxY = Math.max(minY, worldHeight - halfChassisHeight);
             return {
                 x: randomInRange(minX, maxX),
                 y: randomInRange(minY, maxY),
@@ -497,8 +990,8 @@
         enemyAiState.searchTarget = pickEnemySearchTarget();
 
         const initializeFogGrid = () => {
-            const width = playfield.clientWidth;
-            const height = playfield.clientHeight;
+            const width = worldWidth;
+            const height = worldHeight;
             fogCanvas.width = width;
             fogCanvas.height = height;
             fogCols = Math.ceil(width / FOG_CELL_SIZE);
@@ -511,8 +1004,8 @@
 
         const ensureFogGrid = () => {
             if (
-                fogCanvas.width !== playfield.clientWidth ||
-                fogCanvas.height !== playfield.clientHeight ||
+                fogCanvas.width !== worldWidth ||
+                fogCanvas.height !== worldHeight ||
                 fogAlpha.length === 0
             ) {
                 initializeFogGrid();
@@ -691,6 +1184,9 @@
             missionOutcome = MissionOutcome.FAILED;
             resetInputState();
             playerTank.elements.root.classList.add("tank--ghost");
+            isAimCursorLocked = true;
+            hideAimCursor();
+            playfield.classList.add("playfield--default-cursor");
 
             showMissionOverlay({
                 title: "MISSION FAILED",
@@ -707,6 +1203,9 @@
 
             missionOutcome = MissionOutcome.COMPLETED;
             resetInputState();
+            isAimCursorLocked = true;
+            hideAimCursor();
+            playfield.classList.add("playfield--default-cursor");
 
             showMissionOverlay({
                 title: "MISSION COMPLET",
@@ -737,15 +1236,17 @@
         };
 
         const clampTankPosition = (tank) => {
-            tank.state.x = clamp(tank.state.x, halfChassisWidth, playfield.clientWidth - halfChassisWidth);
-            tank.state.y = clamp(tank.state.y, halfChassisHeight, playfield.clientHeight - halfChassisHeight);
+            tank.state.x = clamp(tank.state.x, halfChassisWidth, worldWidth - halfChassisWidth);
+            tank.state.y = clamp(tank.state.y, halfChassisHeight, worldHeight - halfChassisHeight);
         };
 
-        const updatePointerFromEvent = (event) => {
+        function updatePointerFromEvent(event) {
             const rect = playfield.getBoundingClientRect();
-            pointerState.x = event.clientX - rect.left;
-            pointerState.y = event.clientY - rect.top;
-        };
+            pointerState.viewportX = event.clientX - rect.left;
+            pointerState.viewportY = event.clientY - rect.top;
+            syncPointerWorldPosition();
+            updateAimCursorPosition();
+        }
 
         window.addEventListener("pointermove", updatePointerFromEvent);
 
@@ -769,7 +1270,7 @@
 
             const bulletElement = document.createElement("div");
             bulletElement.className = `tank-bullet ${tank.state.isPlayer ? "tank-bullet--player" : "tank-bullet--enemy"}`;
-            playfield.appendChild(bulletElement);
+            world.appendChild(bulletElement);
 
             const bulletState = {
                 x: spawnX,
@@ -908,9 +1409,9 @@
                 if (
                     bullet.liveTime > BULLET_LIFETIME ||
                     bullet.x < -20 ||
-                    bullet.x > playfield.clientWidth + 20 ||
+                    bullet.x > worldWidth + 20 ||
                     bullet.y < -20 ||
-                    bullet.y > playfield.clientHeight + 20
+                    bullet.y > worldHeight + 20
                 ) {
                     bullet.element.remove();
                     bullets.splice(index, 1);
@@ -927,7 +1428,25 @@
                     const dx = bullet.x - targetTank.state.x;
                     const dy = bullet.y - targetTank.state.y;
                     if (Math.abs(dx) <= halfChassisWidth && Math.abs(dy) <= halfChassisHeight) {
+                        spawnExplosionAt(bullet.x, bullet.y, { variant: "small" });
                         applyDamage(targetTank, DAMAGE_PER_HIT);
+                        bullet.element.remove();
+                        bullets.splice(index, 1);
+                        hasHit = true;
+                        break;
+                    }
+                }
+
+                if (hasHit) {
+                    continue;
+                }
+
+                for (let barrelIndex = barrels.length - 1; barrelIndex >= 0; barrelIndex -= 1) {
+                    const barrel = barrels[barrelIndex];
+                    const dxBarrel = bullet.x - barrel.x;
+                    const dyBarrel = bullet.y - barrel.y;
+                    if (Math.hypot(dxBarrel, dyBarrel) <= BARREL_HIT_RADIUS) {
+                        triggerBarrelExplosion(barrel, barrelIndex);
                         bullet.element.remove();
                         bullets.splice(index, 1);
                         hasHit = true;
@@ -972,11 +1491,6 @@
                 );
             }
 
-            if (playerVisible && !wasPlayerVisible) {
-                enemyAiState.reactionTimer = ENEMY_REACTION_DELAY;
-                enemyAiState.mode = "alert";
-            }
-
             if (hasDirectSight) {
                 enemyAiState.seenByPlayerTimer = VISIBILITY_MEMORY_SECONDS;
             }
@@ -993,6 +1507,11 @@
             }
 
             if (playerVisible) {
+                if (!wasPlayerVisible) {
+                    enemyAiState.reactionTimer = ENEMY_REACTION_DELAY;
+                    enemyAiState.mode = "alert";
+                }
+
                 let desiredAngle = Math.atan2(deltaX, -deltaY) * RAD_TO_DEG;
                 if (desiredAngle < 0) {
                     desiredAngle += 360;
@@ -1034,12 +1553,12 @@
                     enemyState.x = clamp(
                         proposedX,
                         halfChassisWidth,
-                        Math.max(halfChassisWidth, playfield.clientWidth - halfChassisWidth),
+                        Math.max(halfChassisWidth, worldWidth - halfChassisWidth),
                     );
                     enemyState.y = clamp(
                         proposedY,
                         halfChassisHeight,
-                        Math.max(halfChassisHeight, playfield.clientHeight - halfChassisHeight),
+                        Math.max(halfChassisHeight, worldHeight - halfChassisHeight),
                     );
                 }
 
@@ -1115,12 +1634,12 @@
             enemyState.x = clamp(
                 proposedX,
                 halfChassisWidth,
-                Math.max(halfChassisWidth, playfield.clientWidth - halfChassisWidth),
+                Math.max(halfChassisWidth, worldWidth - halfChassisWidth),
             );
             enemyState.y = clamp(
                 proposedY,
                 halfChassisHeight,
-                Math.max(halfChassisHeight, playfield.clientHeight - halfChassisHeight),
+                Math.max(halfChassisHeight, worldHeight - halfChassisHeight),
             );
 
             const sweepX = enemyState.x + direction.x * 180;
@@ -1132,9 +1651,6 @@
             const deltaSeconds = Math.min(0.05, (timestamp - previousTimestamp) / 1000);
             previousTimestamp = timestamp;
 
-            let overflowX = 0;
-            let overflowY = 0;
-
             if (!tankState.isDestroyed) {
                 const turnInput = (keyState.turnRight ? 1 : 0) - (keyState.turnLeft ? 1 : 0);
                 if (turnInput !== 0) {
@@ -1144,8 +1660,8 @@
                 const moveInput = (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0);
                 if (moveInput !== 0) {
                     const direction = forwardComponents(tankState.hullAngle);
-                    const fieldWidth = playfield.clientWidth;
-                    const fieldHeight = playfield.clientHeight;
+                    const fieldWidth = worldWidth;
+                    const fieldHeight = worldHeight;
 
                     const deltaMoveX = direction.x * moveInput * MOVE_SPEED * deltaSeconds;
                     const deltaMoveY = direction.y * moveInput * MOVE_SPEED * deltaSeconds;
@@ -1164,13 +1680,12 @@
                         Math.max(halfChassisHeight, fieldHeight - halfChassisHeight),
                     );
 
-                    overflowX = proposedX - clampedX;
-                    overflowY = proposedY - clampedY;
-
                     tankState.x = clampedX;
                     tankState.y = clampedY;
                 }
             }
+
+            updateCameraForPlayer();
 
             allTanks.forEach((tank) => {
                 if (tank.state.reloadTimer > 0) {
@@ -1183,16 +1698,13 @@
                 fireProjectile(playerTank);
             }
 
-            aimTurretTowards(playerTank, pointerState.x, pointerState.y, deltaSeconds);
+            aimTurretTowards(playerTank, pointerState.worldX, pointerState.worldY, deltaSeconds);
             updateEnemyBehavior(deltaSeconds);
+            updateBarrelSpawning(deltaSeconds);
 
             allTanks.forEach(updateTankTransform);
             updateBullets(deltaSeconds);
             renderFog(deltaSeconds);
-
-            if ((overflowX !== 0 || overflowY !== 0) && !isDraggingField) {
-                shiftBackgroundByPixels(overflowX, overflowY);
-            }
 
             window.requestAnimationFrame(step);
         };
@@ -1200,10 +1712,17 @@
         window.requestAnimationFrame(step);
 
         window.addEventListener("resize", () => {
+            updateViewportMetrics();
+            pointerState.viewportX = clamp(pointerState.viewportX, 0, viewportWidth);
+            pointerState.viewportY = clamp(pointerState.viewportY, 0, viewportHeight);
+            updateAimCursorPosition();
+            updateCameraForPlayer({ force: true });
+            syncPointerWorldPosition();
             allTanks.forEach((tank) => {
                 clampTankPosition(tank);
                 updateTankTransform(tank);
             });
+            barrels.forEach(clampBarrelPosition);
             initializeFogGrid();
             renderFog(0);
         });
@@ -1222,8 +1741,9 @@
 
             event.preventDefault();
             playSfx(selectSound);
+            const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
             scheduleNavigation(() => {
-                form.submit();
+                submitFormWithOverrides(form, submitter);
             });
         });
     });

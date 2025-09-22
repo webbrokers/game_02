@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>War Tanks — Настройки</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="menu.css">
+    <script src="app.js" defer></script>
+</head>
+<body class="menu-screen settings-screen">
+    <div class="menu-overlay">
+        <header class="menu-header">
+            <span class="menu-brand">WAR TANKS II</span>
+        </header>
+        <main class="menu-panel settings-panel" role="form" aria-label="Настройки танка">
+            <h1 class="panel-title">Настройки танка</h1>
+            <p class="panel-subtitle">Настройте основные параметры перед боем</p>
+            <form class="settings-form" novalidate>
+                <div class="settings-grid">
+                    <section class="settings-column" data-tank-id="tiger" aria-labelledby="settings-column-title-tiger">
+                        <h2 class="settings-column__title" id="settings-column-title-tiger">Tiger MK II</h2>
+                        <p class="settings-column__subtitle">Баланс скорости, урона и перезарядки.</p>
+                        <div class="settings-field">
+                            <label class="settings-label" for="tiger-move-speed">Скорость перемещения</label>
+                            <input class="retro-input retro-input--compact" id="tiger-move-speed" type="number" min="100" max="400" step="10" required data-tank-id="tiger" data-field="moveSpeed">
+                            <p class="settings-hint">Контролирует скорость передвижения танка по карте.</p>
+                        </div>
+                        <div class="settings-field">
+                            <label class="settings-label" for="tiger-fire-cooldown">Скорость перезарядки</label>
+                            <input class="retro-input retro-input--compact" id="tiger-fire-cooldown" type="number" min="0.5" max="5" step="0.1" required data-tank-id="tiger" data-field="fireCooldown">
+                            <p class="settings-hint">Время между выстрелами. Меньше значение — быстрее стрельба.</p>
+                        </div>
+                        <div class="settings-field">
+                            <label class="settings-label" for="tiger-damage">Наносимый урон</label>
+                            <input class="retro-input retro-input--compact" id="tiger-damage" type="number" min="0.1" max="1" step="0.05" required data-tank-id="tiger" data-field="damagePerHit">
+                            <p class="settings-hint">Доля здоровья, снимаемая за одно попадание.</p>
+                        </div>
+                    </section>
+                    <section class="settings-column" data-tank-id="phantom" aria-labelledby="settings-column-title-phantom">
+                        <h2 class="settings-column__title" id="settings-column-title-phantom">FANTOM X</h2>
+                        <p class="settings-column__subtitle">Лёгкий скоростной разведчик.</p>
+                        <div class="settings-field">
+                            <label class="settings-label" for="phantom-move-speed">Скорость перемещения</label>
+                            <input class="retro-input retro-input--compact" id="phantom-move-speed" type="number" min="100" max="400" step="10" required data-tank-id="phantom" data-field="moveSpeed">
+                            <p class="settings-hint">Чем выше значение, тем манёвреннее танк.</p>
+                        </div>
+                        <div class="settings-field">
+                            <label class="settings-label" for="phantom-fire-cooldown">Скорость перезарядки</label>
+                            <input class="retro-input retro-input--compact" id="phantom-fire-cooldown" type="number" min="0.5" max="5" step="0.1" required data-tank-id="phantom" data-field="fireCooldown">
+                            <p class="settings-hint">Понижение значения ускоряет стрельбу.</p>
+                        </div>
+                        <div class="settings-field">
+                            <label class="settings-label" for="phantom-damage">Наносимый урон</label>
+                            <input class="retro-input retro-input--compact" id="phantom-damage" type="number" min="0.1" max="1" step="0.05" required data-tank-id="phantom" data-field="damagePerHit">
+                            <p class="settings-hint">Доля здоровья врага за одно попадание.</p>
+                        </div>
+                    </section>
+                    <section class="settings-column" data-tank-id="crusher" aria-labelledby="settings-column-title-crusher">
+                        <h2 class="settings-column__title" id="settings-column-title-crusher">CRUSHER 88</h2>
+                        <p class="settings-column__subtitle">Тяжёлый ударный танк.</p>
+                        <div class="settings-field">
+                            <label class="settings-label" for="crusher-move-speed">Скорость перемещения</label>
+                            <input class="retro-input retro-input--compact" id="crusher-move-speed" type="number" min="100" max="400" step="10" required data-tank-id="crusher" data-field="moveSpeed">
+                            <p class="settings-hint">Отвечает за мобильность на поле боя.</p>
+                        </div>
+                        <div class="settings-field">
+                            <label class="settings-label" for="crusher-fire-cooldown">Скорость перезарядки</label>
+                            <input class="retro-input retro-input--compact" id="crusher-fire-cooldown" type="number" min="0.5" max="5" step="0.1" required data-tank-id="crusher" data-field="fireCooldown">
+                            <p class="settings-hint">Время между выстрелами тяжёлого орудия.</p>
+                        </div>
+                        <div class="settings-field">
+                            <label class="settings-label" for="crusher-damage">Наносимый урон</label>
+                            <input class="retro-input retro-input--compact" id="crusher-damage" type="number" min="0.1" max="1" step="0.05" required data-tank-id="crusher" data-field="damagePerHit">
+                            <p class="settings-hint">Максимальный урон за попадание.</p>
+                        </div>
+                    </section>
+                </div>
+                <p class="settings-feedback" role="status" aria-live="polite"></p>
+                <div class="button-row">
+                    <a class="retro-button ghost" href="menu.html">Назад</a>
+                    <button class="retro-button" type="submit">Сохранить</button>
+                </div>
+            </form>
+        </main>
+    </div>
+</body>
+</html>
