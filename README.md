@@ -77,6 +77,9 @@ game_02/
 │   ├── menu-hover_2.mp3
 │   ├── menu-select.mp3
 │   └── tank-shot.wav
+├── video/              # Видеофайлы (кат-сцены/брీఫинги)
+│   ├── brifing_1_002.mp4
+│   └── mission_complet_02.mp4
 └── images/             # Игровые ресурсы
     ├── map-01.png      # Карта Desert Strike
     └── README.txt

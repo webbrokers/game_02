@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>War Tanks II — Брифинг</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            background: #000;
+        }
+
+        .briefing-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <video class="briefing-video" src="video/brifing_1_002.mp4" preload="auto" autoplay playsinline></video>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const video = document.querySelector(".briefing-video");
+            if (!video) {
+                return;
+            }
+
+            const redirectToSelect = () => {
+                window.location.href = "select.html";
+            };
+
+            const attemptPlayback = () => {
+                const playback = video.play();
+                if (playback && typeof playback.then === "function") {
+                    playback.catch(() => {});
+                }
+            };
+
+            if (video.readyState >= 2) {
+                attemptPlayback();
+            } else {
+                video.addEventListener("canplay", attemptPlayback, { once: true });
+            }
+
+            video.addEventListener("pointerdown", attemptPlayback);
+            video.addEventListener("ended", redirectToSelect);
+        });
+    </script>
+</body>
+</html>

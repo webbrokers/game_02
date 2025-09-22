@@ -1209,8 +1209,8 @@
 
             showMissionOverlay({
                 title: "MISSION COMPLET",
-                buttonLabel: "Далее",
-                buttonHref: "menu.html",
+                buttonLabel: "MISSION COMPLETED",
+                buttonHref: "mission-completed.html",
                 modifierClass: "mission-overlay--completed",
             });
         };

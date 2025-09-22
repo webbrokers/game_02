@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>War Tanks II — Mission Completed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="menu.css">
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background-color: #000;
+            font-family: "Press Start 2P", system-ui, sans-serif;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 32px;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .mission-video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            display: block;
+            background-color: #000;
+        }
+
+        .mission-caption {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            letter-spacing: 0.12em;
+            text-shadow: 0 0 12px rgba(0, 0, 0, 0.75);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <video class="mission-video" src="video/mission_complet_02.mp4" autoplay playsinline></video>
+    <p class="mission-caption">Командер, дождитесь отчёта штаба…</p>
+    <script>
+        const missionVideo = document.querySelector('.mission-video');
+        if (missionVideo) {
+            const navigateToRewards = () => {
+                window.location.href = 'top-offers.html';
+            };
+
+            missionVideo.addEventListener('ended', navigateToRewards, { once: true });
+            missionVideo.addEventListener('error', navigateToRewards, { once: true });
+
+            const ensurePlayback = () => {
+                missionVideo.volume = 1;
+                missionVideo.muted = false;
+                const playAttempt = missionVideo.play();
+                if (playAttempt && typeof playAttempt.then === 'function') {
+                    playAttempt.catch(() => {
+                        // Autoplay with sound might be blocked; show prompt for user tap.
+                        missionVideo.setAttribute('controls', '');
+                    });
+                }
+            };
+
+            if (missionVideo.readyState >= 2) {
+                ensurePlayback();
+            } else {
+                missionVideo.addEventListener('loadeddata', ensurePlayback, { once: true });
+            }
+        }
+    </script>
+</body>
+</html>
