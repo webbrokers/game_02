@@ -50,6 +50,10 @@
     const selectSound = new Audio("audio/menu-select.mp3");
     selectSound.preload = "auto";
 
+    const tankShotSound = new Audio("audio/tank-shot.wav");
+    tankShotSound.preload = "auto";
+    tankShotSound.volume = 1;
+
     const playSfx = (clip) => {
         clip.currentTime = 0;
         clip.play().catch(() => {
@@ -57,8 +61,20 @@
         });
     };
 
-    const interactiveButtons = document.querySelectorAll(".menu-link, .retro-button, .play-menu-button");
-    interactiveButtons.forEach((element) => {
+    const playTankShot = () => {
+        const instance = tankShotSound.cloneNode();
+        instance.volume = tankShotSound.volume;
+        playSfx(instance);
+    };
+
+    const wiredInteractiveElements = new WeakSet();
+    const registerInteractiveElement = (element) => {
+        if (!element || wiredInteractiveElements.has(element)) {
+            return;
+        }
+
+        wiredInteractiveElements.add(element);
+
         element.addEventListener("mouseenter", () => playSfx(hoverSound));
         element.addEventListener("click", (event) => {
             playSfx(selectSound);
@@ -100,7 +116,10 @@
                 });
             }
         });
-    });
+    };
+
+    const interactiveButtons = document.querySelectorAll(".menu-link, .retro-button, .play-menu-button");
+    interactiveButtons.forEach(registerInteractiveElement);
 
     const playfield = document.querySelector(".playfield");
     if (playfield) {
@@ -232,58 +251,115 @@
             }
         });
 
-        const tankRoot = document.createElement("div");
-        tankRoot.className = "tank";
+        const createTankElements = (variant) => {
+            const root = document.createElement("div");
+            root.className = `tank ${variant}`;
 
-        const reloadBar = document.createElement("div");
-        reloadBar.className = "tank__reload";
-        const reloadFill = document.createElement("div");
-        reloadFill.className = "tank__reload-fill";
-        reloadBar.appendChild(reloadFill);
-        tankRoot.appendChild(reloadBar);
+            const reloadBar = document.createElement("div");
+            reloadBar.className = "tank__reload";
+            const reloadFill = document.createElement("div");
+            reloadFill.className = "tank__reload-fill";
+            reloadBar.appendChild(reloadFill);
+            root.appendChild(reloadBar);
 
-        const chassis = document.createElement("div");
-        chassis.className = "tank__chassis";
+            const healthBar = document.createElement("div");
+            healthBar.className = "tank__health";
+            const healthFill = document.createElement("div");
+            healthFill.className = "tank__health-fill";
+            healthBar.appendChild(healthFill);
+            root.appendChild(healthBar);
 
-        const body = document.createElement("div");
-        body.className = "tank__body";
-        const fuelPack = document.createElement("div");
-        fuelPack.className = "tank__fuel-pack";
-        const front = document.createElement("div");
-        front.className = "tank__front";
-        body.appendChild(fuelPack);
-        body.appendChild(front);
+            const chassis = document.createElement("div");
+            chassis.className = "tank__chassis";
 
-        const turret = document.createElement("div");
-        turret.className = "tank__turret";
-        const barrel = document.createElement("div");
-        barrel.className = "tank__barrel";
-        turret.appendChild(barrel);
+            const body = document.createElement("div");
+            body.className = "tank__body";
+            const fuelPack = document.createElement("div");
+            fuelPack.className = "tank__fuel-pack";
+            const front = document.createElement("div");
+            front.className = "tank__front";
+            body.appendChild(fuelPack);
+            body.appendChild(front);
 
-        const leftTrack = document.createElement("div");
-        leftTrack.className = "tank__track tank__track--left";
-        const rightTrack = document.createElement("div");
-        rightTrack.className = "tank__track tank__track--right";
+            const turret = document.createElement("div");
+            turret.className = "tank__turret";
+            const barrel = document.createElement("div");
+            barrel.className = "tank__barrel";
+            turret.appendChild(barrel);
 
-        chassis.appendChild(leftTrack);
-        chassis.appendChild(rightTrack);
-        chassis.appendChild(body);
-        chassis.appendChild(turret);
-        tankRoot.appendChild(chassis);
-        playfield.appendChild(tankRoot);
+            const leftTrack = document.createElement("div");
+            leftTrack.className = "tank__track tank__track--left";
+            const rightTrack = document.createElement("div");
+            rightTrack.className = "tank__track tank__track--right";
+
+            chassis.appendChild(leftTrack);
+            chassis.appendChild(rightTrack);
+            chassis.appendChild(body);
+            chassis.appendChild(turret);
+            root.appendChild(chassis);
+
+            return {
+                root,
+                chassis,
+                turret,
+                reloadFill,
+                healthFill,
+            };
+        };
+
+        const createTank = ({ x, y, variant, isPlayer }) => {
+            const elements = createTankElements(variant);
+            playfield.appendChild(elements.root);
+            return {
+                elements,
+                state: {
+                    x,
+                    y,
+                    hullAngle: 0,
+                    turretAngle: 0,
+                    reloadTimer: 0,
+                    health: 1,
+                    isPlayer,
+                    isDestroyed: false,
+                },
+            };
+        };
+
+        const playerTank = createTank({
+            x: playfield.clientWidth / 2,
+            y: playfield.clientHeight / 2,
+            variant: "tank--player",
+            isPlayer: true,
+        });
+
+        const enemyTank = createTank({
+            x: playfield.clientWidth * 0.75,
+            y: playfield.clientHeight * 0.35,
+            variant: "tank--enemy",
+            isPlayer: false,
+        });
+
+        const allTanks = [playerTank, enemyTank];
+
+        const tankState = playerTank.state;
+        const enemyState = enemyTank.state;
+        const enemyAiState = {
+            mode: "search",
+            playerVisible: false,
+            reactionTimer: 0,
+            searchTarget: null,
+            searchIdleTime: 0,
+            lastSeenPosition: null,
+            pendingInvestigate: false,
+            playerVisibilityTimer: 0,
+            seenByPlayerTimer: 0,
+            visibleToPlayer: false,
+        };
 
         const fogCanvas = document.createElement("canvas");
         fogCanvas.className = "playfield__fog";
         const fogCtx = fogCanvas.getContext("2d");
         playfield.appendChild(fogCanvas);
-
-        const tankState = {
-            x: playfield.clientWidth / 2,
-            y: playfield.clientHeight / 2,
-            hullAngle: 0,
-            turretAngle: 0,
-            reloadTimer: 0,
-        };
 
         const keyState = {
             forward: false,
@@ -298,14 +374,91 @@
             y: tankState.y - 120,
         };
 
+        const MissionOutcome = Object.freeze({
+            NONE: null,
+            FAILED: "failed",
+            COMPLETED: "completed",
+        });
+
+        let missionOutcome = MissionOutcome.NONE;
+
+        const missionOverlay = document.createElement("div");
+        missionOverlay.className = "mission-overlay";
+        missionOverlay.setAttribute("aria-hidden", "true");
+
+        const missionOverlayPanel = document.createElement("div");
+        missionOverlayPanel.className = "mission-overlay__panel";
+        missionOverlayPanel.setAttribute("role", "dialog");
+        missionOverlayPanel.setAttribute("aria-modal", "true");
+
+        const missionTitle = document.createElement("div");
+        missionTitle.className = "mission-overlay__title";
+        const missionTitleId = "mission-overlay-title";
+        missionTitle.id = missionTitleId;
+        missionOverlayPanel.setAttribute("aria-labelledby", missionTitleId);
+
+        const missionActions = document.createElement("div");
+        missionActions.className = "mission-overlay__actions";
+
+        const missionActionButton = document.createElement("a");
+        missionActionButton.className = "retro-button mission-overlay__button";
+        missionActionButton.setAttribute("href", "#");
+        missionActions.appendChild(missionActionButton);
+
+        missionOverlayPanel.appendChild(missionTitle);
+        missionOverlayPanel.appendChild(missionActions);
+        missionOverlay.appendChild(missionOverlayPanel);
+        playfield.appendChild(missionOverlay);
+
+        registerInteractiveElement(missionActionButton);
+
+        const resetInputState = () => {
+            keyState.forward = false;
+            keyState.backward = false;
+            keyState.turnLeft = false;
+            keyState.turnRight = false;
+            keyState.firing = false;
+        };
+
+        const showMissionOverlay = ({
+            title,
+            buttonLabel,
+            buttonHref,
+            modifierClass,
+        }) => {
+            missionOverlay.classList.remove(
+                "mission-overlay--failed",
+                "mission-overlay--completed",
+            );
+
+            if (modifierClass) {
+                missionOverlay.classList.add(modifierClass);
+            }
+
+            missionTitle.textContent = title;
+            missionActionButton.textContent = buttonLabel;
+            missionActionButton.setAttribute("href", buttonHref);
+            missionOverlay.classList.add("mission-overlay--visible");
+            missionOverlay.setAttribute("aria-hidden", "false");
+
+            window.setTimeout(() => {
+                try {
+                    missionActionButton.focus({ preventScroll: true });
+                } catch (error) {
+                    missionActionButton.focus();
+                }
+            }, 50);
+        };
+
         const bullets = [];
         const DEG_TO_RAD = Math.PI / 180;
         const RAD_TO_DEG = 180 / Math.PI;
         const TURN_SPEED = 140;
         const MOVE_SPEED = 220;
-        const FIRE_COOLDOWN = 0.65;
+        const FIRE_COOLDOWN = 1.5;
         const BULLET_SPEED = 580;
         const BULLET_LIFETIME = 2.2;
+        const DAMAGE_PER_HIT = 0.2;
         const halfChassisWidth = 40;
         const halfChassisHeight = 48;
         const bulletHalfSize = 5;
@@ -319,6 +472,29 @@
         let fogCols = 0;
         let fogRows = 0;
         let fogAlpha = new Float32Array(0);
+        const VISION_RADIUS = fogOuterRadius;
+        const ENEMY_REACTION_DELAY = 0.5;
+        const ENEMY_SEARCH_SPEED_FACTOR = 0.65;
+        const ENEMY_SEARCH_TURN_RATE = TURN_SPEED * 0.75;
+        const ENEMY_SEARCH_TARGET_RADIUS = 96;
+        const ENEMY_SEARCH_IDLE_MIN = 0.5;
+        const ENEMY_SEARCH_IDLE_MAX = 1.5;
+        const VISIBILITY_MEMORY_SECONDS = 1;
+
+        const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+        const pickEnemySearchTarget = () => {
+            const minX = halfChassisWidth;
+            const maxX = Math.max(minX, playfield.clientWidth - halfChassisWidth);
+            const minY = halfChassisHeight;
+            const maxY = Math.max(minY, playfield.clientHeight - halfChassisHeight);
+            return {
+                x: randomInRange(minX, maxX),
+                y: randomInRange(minY, maxY),
+            };
+        };
+
+        enemyAiState.searchTarget = pickEnemySearchTarget();
 
         const initializeFogGrid = () => {
             const width = playfield.clientWidth;
@@ -357,46 +533,98 @@
                 }
             }
 
-            const minCol = Math.max(0, Math.floor((tankState.x - fogOuterRadius) / FOG_CELL_SIZE));
-            const maxCol = Math.min(fogCols - 1, Math.floor((tankState.x + fogOuterRadius) / FOG_CELL_SIZE));
-            const minRow = Math.max(0, Math.floor((tankState.y - fogOuterRadius) / FOG_CELL_SIZE));
-            const maxRow = Math.min(fogRows - 1, Math.floor((tankState.y + fogOuterRadius) / FOG_CELL_SIZE));
-
             const innerRadiusSq = fogInnerRadius * fogInnerRadius;
             const outerRadiusSq = fogOuterRadius * fogOuterRadius;
             const falloffRange = fogOuterRadius - fogInnerRadius || 1;
             const cellHalf = FOG_CELL_SIZE / 2;
 
-            for (let row = minRow; row <= maxRow; row += 1) {
-                const centerY = row * FOG_CELL_SIZE + cellHalf;
-                const dy = centerY - tankState.y;
-                const dySq = dy * dy;
-                for (let col = minCol; col <= maxCol; col += 1) {
-                    const centerX = col * FOG_CELL_SIZE + cellHalf;
-                    const dx = centerX - tankState.x;
-                    const distSq = dx * dx + dySq;
-                    if (distSq > outerRadiusSq) {
-                        continue;
-                    }
+            const applyReveal = (centerX, centerY) => {
+                const minCol = Math.max(0, Math.floor((centerX - fogOuterRadius) / FOG_CELL_SIZE));
+                const maxCol = Math.min(fogCols - 1, Math.floor((centerX + fogOuterRadius) / FOG_CELL_SIZE));
+                const minRow = Math.max(0, Math.floor((centerY - fogOuterRadius) / FOG_CELL_SIZE));
+                const maxRow = Math.min(fogRows - 1, Math.floor((centerY + fogOuterRadius) / FOG_CELL_SIZE));
 
-                    let influence = 0;
-                    if (distSq <= innerRadiusSq) {
-                        influence = 1;
-                    } else {
-                        const dist = Math.sqrt(distSq);
-                        influence = 1 - (dist - fogInnerRadius) / falloffRange;
-                    }
+                for (let row = minRow; row <= maxRow; row += 1) {
+                    const cellCenterY = row * FOG_CELL_SIZE + cellHalf;
+                    const dy = cellCenterY - centerY;
+                    const dySq = dy * dy;
+                    for (let col = minCol; col <= maxCol; col += 1) {
+                        const cellCenterX = col * FOG_CELL_SIZE + cellHalf;
+                        const dx = cellCenterX - centerX;
+                        const distSq = dx * dx + dySq;
+                        if (distSq > outerRadiusSq) {
+                            continue;
+                        }
 
-                    const index = row * fogCols + col;
-                    if (influence > fogAlpha[index]) {
-                        fogAlpha[index] = influence;
+                        let influence = 0;
+                        if (distSq <= innerRadiusSq) {
+                            influence = 1;
+                        } else {
+                            const dist = Math.sqrt(distSq);
+                            influence = 1 - (dist - fogInnerRadius) / falloffRange;
+                        }
+
+                        const index = row * fogCols + col;
+                        if (influence > fogAlpha[index]) {
+                            fogAlpha[index] = influence;
+                        }
                     }
                 }
+            };
+
+            applyReveal(tankState.x, tankState.y);
+
+            if (!enemyState.isDestroyed && enemyAiState.visibleToPlayer) {
+                applyReveal(enemyState.x, enemyState.y);
             }
         };
 
         const renderFog = (deltaSeconds) => {
             if (!fogCtx) {
+                return;
+            }
+
+            if (missionOutcome === MissionOutcome.COMPLETED) {
+                fogCanvas.classList.add("playfield__fog--disabled");
+                fogCtx.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
+                return;
+            }
+
+            fogCanvas.classList.remove("playfield__fog--disabled");
+
+            if (missionOutcome === MissionOutcome.FAILED) {
+                ensureFogGrid();
+
+                const { width, height } = fogCanvas;
+                fogCtx.clearRect(0, 0, width, height);
+                fogCtx.globalCompositeOperation = "source-over";
+                fogCtx.globalAlpha = 1;
+                fogCtx.fillStyle = "rgba(8, 11, 16, 0.92)";
+                fogCtx.fillRect(0, 0, width, height);
+
+                const ghostRadius = fogOuterRadius * 0.45;
+                const ghostInnerRadius = ghostRadius * 0.35;
+                fogCtx.globalCompositeOperation = "destination-out";
+
+                const gradient = fogCtx.createRadialGradient(
+                    tankState.x,
+                    tankState.y,
+                    ghostInnerRadius,
+                    tankState.x,
+                    tankState.y,
+                    ghostRadius,
+                );
+
+                gradient.addColorStop(0, "rgba(0, 0, 0, 0.75)");
+                gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+                fogCtx.fillStyle = gradient;
+                fogCtx.beginPath();
+                fogCtx.arc(tankState.x, tankState.y, ghostRadius, 0, Math.PI * 2);
+                fogCtx.fill();
+
+                fogCtx.globalCompositeOperation = "source-over";
+                fogCtx.globalAlpha = 1;
                 return;
             }
 
@@ -432,24 +660,85 @@
             fogCtx.globalAlpha = 1;
         };
 
-        const updateTankTransform = () => {
-            tankRoot.style.transform = `translate3d(${tankState.x}px, ${tankState.y}px, 0)`;
-            chassis.style.transform = `translate(-50%, -50%) rotate(${tankState.hullAngle}deg)`;
-            const relativeTurret = (tankState.turretAngle - tankState.hullAngle + 360) % 360;
-            turret.style.transform = `translate(-50%, -50%) rotate(${relativeTurret}deg)`;
+        const updateTankTransform = (tank) => {
+            const { state, elements } = tank;
+            elements.root.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
+            elements.chassis.style.transform = `translate(-50%, -50%) rotate(${state.hullAngle}deg)`;
+            const relativeTurret = (state.turretAngle - state.hullAngle + 360) % 360;
+            elements.turret.style.transform = `translate(-50%, -50%) rotate(${relativeTurret}deg)`;
         };
 
-        const updateReloadBar = () => {
-            const progress = Math.max(0, Math.min(1, 1 - tankState.reloadTimer / FIRE_COOLDOWN));
-            reloadFill.style.transform = `scaleX(${progress})`;
+        const updateReloadBar = (tank) => {
+            const progress = Math.max(0, Math.min(1, 1 - tank.state.reloadTimer / FIRE_COOLDOWN));
+            tank.elements.reloadFill.style.transform = `scaleX(${progress})`;
         };
 
-        updateTankTransform();
-        updateReloadBar();
+        const updateHealthBar = (tank) => {
+            tank.elements.healthFill.style.transform = `scaleX(${Math.max(0, Math.min(1, tank.state.health))})`;
+        };
 
-        const clampTankPosition = () => {
-            tankState.x = clamp(tankState.x, halfChassisWidth, playfield.clientWidth - halfChassisWidth);
-            tankState.y = clamp(tankState.y, halfChassisHeight, playfield.clientHeight - halfChassisHeight);
+        allTanks.forEach((tank) => {
+            updateTankTransform(tank);
+            updateReloadBar(tank);
+            updateHealthBar(tank);
+        });
+
+        const handleMissionFailed = () => {
+            if (missionOutcome !== MissionOutcome.NONE) {
+                return;
+            }
+
+            missionOutcome = MissionOutcome.FAILED;
+            resetInputState();
+            playerTank.elements.root.classList.add("tank--ghost");
+
+            showMissionOverlay({
+                title: "MISSION FAILED",
+                buttonLabel: "пойти на завод",
+                buttonHref: "select.html",
+                modifierClass: "mission-overlay--failed",
+            });
+        };
+
+        const handleMissionCompleted = () => {
+            if (missionOutcome !== MissionOutcome.NONE) {
+                return;
+            }
+
+            missionOutcome = MissionOutcome.COMPLETED;
+            resetInputState();
+
+            showMissionOverlay({
+                title: "MISSION COMPLET",
+                buttonLabel: "Далее",
+                buttonHref: "menu.html",
+                modifierClass: "mission-overlay--completed",
+            });
+        };
+
+        const applyDamage = (tank, amount) => {
+            if (tank.state.isDestroyed) {
+                return;
+            }
+
+            tank.state.health = Math.max(0, tank.state.health - amount);
+            updateHealthBar(tank);
+
+            if (tank.state.health <= 0) {
+                tank.state.isDestroyed = true;
+                tank.elements.root.classList.add("tank--destroyed");
+
+                if (tank.state.isPlayer) {
+                    handleMissionFailed();
+                } else {
+                    handleMissionCompleted();
+                }
+            }
+        };
+
+        const clampTankPosition = (tank) => {
+            tank.state.x = clamp(tank.state.x, halfChassisWidth, playfield.clientWidth - halfChassisWidth);
+            tank.state.y = clamp(tank.state.y, halfChassisHeight, playfield.clientHeight - halfChassisHeight);
         };
 
         const updatePointerFromEvent = (event) => {
@@ -468,18 +757,18 @@
             };
         };
 
-        const fireProjectile = () => {
-            if (tankState.reloadTimer > 0) {
+        const fireProjectile = (tank) => {
+            if (tank.state.reloadTimer > 0 || tank.state.isDestroyed) {
                 return;
             }
 
-            const { x: dirX, y: dirY } = forwardComponents(tankState.turretAngle);
+            const { x: dirX, y: dirY } = forwardComponents(tank.state.turretAngle);
             const muzzleDistance = 60;
-            const spawnX = tankState.x + dirX * muzzleDistance;
-            const spawnY = tankState.y + dirY * muzzleDistance;
+            const spawnX = tank.state.x + dirX * muzzleDistance;
+            const spawnY = tank.state.y + dirY * muzzleDistance;
 
             const bulletElement = document.createElement("div");
-            bulletElement.className = "tank-bullet";
+            bulletElement.className = `tank-bullet ${tank.state.isPlayer ? "tank-bullet--player" : "tank-bullet--enemy"}`;
             playfield.appendChild(bulletElement);
 
             const bulletState = {
@@ -489,13 +778,15 @@
                 dirY,
                 liveTime: 0,
                 element: bulletElement,
+                owner: tank,
             };
 
             bulletElement.style.transform = `translate3d(${spawnX - bulletHalfSize}px, ${spawnY - bulletHalfSize}px, 0)`;
             bullets.push(bulletState);
 
-            tankState.reloadTimer = FIRE_COOLDOWN;
-            updateReloadBar();
+            tank.state.reloadTimer = FIRE_COOLDOWN;
+            updateReloadBar(tank);
+            playTankShot();
         };
 
         const isInteractiveTarget = (target) => {
@@ -577,9 +868,13 @@
 
         let previousTimestamp = performance.now();
 
-        const updateTurretAngle = (deltaSeconds) => {
-            const deltaX = pointerState.x - tankState.x;
-            const deltaY = pointerState.y - tankState.y;
+        const aimTurretTowards = (tank, targetX, targetY, deltaSeconds, turnRate = 160) => {
+            if (tank.state.isDestroyed) {
+                return;
+            }
+
+            const deltaX = targetX - tank.state.x;
+            const deltaY = targetY - tank.state.y;
 
             if (Math.abs(deltaX) < 0.0001 && Math.abs(deltaY) < 0.0001) {
                 return;
@@ -591,16 +886,16 @@
                 angleDeg += 360;
             }
 
-            const current = tankState.turretAngle;
+            const current = tank.state.turretAngle;
             const diffRaw = ((angleDeg - current + 540) % 360) - 180;
 
-            const maxDelta = 160 * deltaSeconds;
+            const maxDelta = turnRate * deltaSeconds;
             let appliedDelta = diffRaw;
             if (Math.abs(diffRaw) > maxDelta) {
                 appliedDelta = Math.sign(diffRaw) * maxDelta;
             }
 
-            tankState.turretAngle = (current + appliedDelta + 360) % 360;
+            tank.state.turretAngle = (current + appliedDelta + 360) % 360;
         };
 
         const updateBullets = (deltaSeconds) => {
@@ -622,55 +917,276 @@
                     continue;
                 }
 
+                let hasHit = false;
+                for (let targetIndex = 0; targetIndex < allTanks.length; targetIndex += 1) {
+                    const targetTank = allTanks[targetIndex];
+                    if (targetTank === bullet.owner || targetTank.state.isDestroyed) {
+                        continue;
+                    }
+
+                    const dx = bullet.x - targetTank.state.x;
+                    const dy = bullet.y - targetTank.state.y;
+                    if (Math.abs(dx) <= halfChassisWidth && Math.abs(dy) <= halfChassisHeight) {
+                        applyDamage(targetTank, DAMAGE_PER_HIT);
+                        bullet.element.remove();
+                        bullets.splice(index, 1);
+                        hasHit = true;
+                        break;
+                    }
+                }
+
+                if (hasHit) {
+                    continue;
+                }
+
                 bullet.element.style.transform = `translate3d(${bullet.x - bulletHalfSize}px, ${bullet.y - bulletHalfSize}px, 0)`;
             }
+        };
+
+        const updateEnemyBehavior = (deltaSeconds) => {
+            if (enemyState.isDestroyed || tankState.isDestroyed) {
+                return;
+            }
+
+            const wasPlayerVisible = enemyAiState.playerVisible;
+
+            const targetX = tankState.x;
+            const targetY = tankState.y;
+            const deltaX = targetX - enemyState.x;
+            const deltaY = targetY - enemyState.y;
+            const distanceToPlayer = Math.hypot(deltaX, deltaY);
+            const hasDirectSight = distanceToPlayer <= VISION_RADIUS;
+
+            if (hasDirectSight) {
+                enemyAiState.playerVisibilityTimer = VISIBILITY_MEMORY_SECONDS;
+                enemyAiState.lastSeenPosition = { x: targetX, y: targetY };
+            }
+
+            const playerVisible = hasDirectSight || enemyAiState.playerVisibilityTimer > 0;
+            enemyAiState.playerVisible = playerVisible;
+
+            if (!hasDirectSight && enemyAiState.playerVisibilityTimer > 0) {
+                enemyAiState.playerVisibilityTimer = Math.max(
+                    0,
+                    enemyAiState.playerVisibilityTimer - deltaSeconds,
+                );
+            }
+
+            if (playerVisible && !wasPlayerVisible) {
+                enemyAiState.reactionTimer = ENEMY_REACTION_DELAY;
+                enemyAiState.mode = "alert";
+            }
+
+            if (hasDirectSight) {
+                enemyAiState.seenByPlayerTimer = VISIBILITY_MEMORY_SECONDS;
+            }
+
+            const enemyVisibleToPlayer = hasDirectSight || enemyAiState.seenByPlayerTimer > 0;
+            enemyAiState.visibleToPlayer = enemyVisibleToPlayer;
+            enemyTank.elements.root.classList.toggle("tank--hidden", !enemyVisibleToPlayer);
+
+            if (!hasDirectSight && enemyAiState.seenByPlayerTimer > 0) {
+                enemyAiState.seenByPlayerTimer = Math.max(
+                    0,
+                    enemyAiState.seenByPlayerTimer - deltaSeconds,
+                );
+            }
+
+            if (playerVisible) {
+                let desiredAngle = Math.atan2(deltaX, -deltaY) * RAD_TO_DEG;
+                if (desiredAngle < 0) {
+                    desiredAngle += 360;
+                }
+
+                const hullDiff = ((desiredAngle - enemyState.hullAngle + 540) % 360) - 180;
+                const hullMax = TURN_SPEED * deltaSeconds;
+                const appliedHull = Math.abs(hullDiff) > hullMax
+                    ? Math.sign(hullDiff) * hullMax
+                    : hullDiff;
+                enemyState.hullAngle = (enemyState.hullAngle + appliedHull + 360) % 360;
+
+                aimTurretTowards(enemyTank, targetX, targetY, deltaSeconds);
+
+                if (enemyAiState.reactionTimer > 0) {
+                    enemyAiState.reactionTimer = Math.max(0, enemyAiState.reactionTimer - deltaSeconds);
+                    if (enemyAiState.reactionTimer > 0) {
+                        return;
+                    }
+                }
+
+                enemyAiState.mode = "engage";
+
+                let moveInput = 0;
+                if (distanceToPlayer > 320) {
+                    moveInput = 1;
+                } else if (distanceToPlayer < 160) {
+                    moveInput = -1;
+                }
+
+                if (moveInput !== 0) {
+                    const direction = forwardComponents(enemyState.hullAngle);
+                    const moveX = direction.x * moveInput * MOVE_SPEED * deltaSeconds;
+                    const moveY = direction.y * moveInput * MOVE_SPEED * deltaSeconds;
+
+                    const proposedX = enemyState.x + moveX;
+                    const proposedY = enemyState.y + moveY;
+
+                    enemyState.x = clamp(
+                        proposedX,
+                        halfChassisWidth,
+                        Math.max(halfChassisWidth, playfield.clientWidth - halfChassisWidth),
+                    );
+                    enemyState.y = clamp(
+                        proposedY,
+                        halfChassisHeight,
+                        Math.max(halfChassisHeight, playfield.clientHeight - halfChassisHeight),
+                    );
+                }
+
+                const turretDiff = Math.abs(((desiredAngle - enemyState.turretAngle + 540) % 360) - 180);
+                if (enemyState.reloadTimer <= 0 && turretDiff < 12 && distanceToPlayer <= 600) {
+                    fireProjectile(enemyTank);
+                }
+
+                return;
+            }
+
+            if (wasPlayerVisible) {
+                enemyAiState.mode = "search";
+                enemyAiState.pendingInvestigate = Boolean(enemyAiState.lastSeenPosition);
+                enemyAiState.searchTarget = enemyAiState.pendingInvestigate
+                    ? { ...enemyAiState.lastSeenPosition }
+                    : pickEnemySearchTarget();
+                enemyAiState.searchIdleTime = enemyAiState.pendingInvestigate
+                    ? 0
+                    : randomInRange(ENEMY_SEARCH_IDLE_MIN, ENEMY_SEARCH_IDLE_MAX);
+            }
+
+            enemyAiState.reactionTimer = 0;
+
+            if (enemyAiState.searchIdleTime > 0) {
+                enemyAiState.searchIdleTime = Math.max(0, enemyAiState.searchIdleTime - deltaSeconds);
+                const forward = forwardComponents(enemyState.hullAngle);
+                const lookX = enemyState.x + forward.x * 180;
+                const lookY = enemyState.y + forward.y * 180;
+                aimTurretTowards(enemyTank, lookX, lookY, deltaSeconds, 60);
+                return;
+            }
+
+            if (!enemyAiState.searchTarget) {
+                enemyAiState.searchTarget = pickEnemySearchTarget();
+            }
+
+            const searchTarget = enemyAiState.searchTarget;
+            const searchDeltaX = searchTarget.x - enemyState.x;
+            const searchDeltaY = searchTarget.y - enemyState.y;
+            const distanceToTarget = Math.hypot(searchDeltaX, searchDeltaY);
+
+            if (distanceToTarget < ENEMY_SEARCH_TARGET_RADIUS) {
+                if (enemyAiState.pendingInvestigate) {
+                    enemyAiState.pendingInvestigate = false;
+                    enemyAiState.lastSeenPosition = null;
+                }
+                enemyAiState.searchIdleTime = randomInRange(ENEMY_SEARCH_IDLE_MIN, ENEMY_SEARCH_IDLE_MAX);
+                enemyAiState.searchTarget = pickEnemySearchTarget();
+                return;
+            }
+
+            const angleRad = Math.atan2(searchDeltaX, -searchDeltaY);
+            let angleDeg = angleRad * RAD_TO_DEG;
+            if (angleDeg < 0) {
+                angleDeg += 360;
+            }
+
+            const searchHullDiff = ((angleDeg - enemyState.hullAngle + 540) % 360) - 180;
+            const searchMax = ENEMY_SEARCH_TURN_RATE * deltaSeconds;
+            const appliedSearch = Math.abs(searchHullDiff) > searchMax
+                ? Math.sign(searchHullDiff) * searchMax
+                : searchHullDiff;
+            enemyState.hullAngle = (enemyState.hullAngle + appliedSearch + 360) % 360;
+
+            const direction = forwardComponents(enemyState.hullAngle);
+            const moveX = direction.x * MOVE_SPEED * ENEMY_SEARCH_SPEED_FACTOR * deltaSeconds;
+            const moveY = direction.y * MOVE_SPEED * ENEMY_SEARCH_SPEED_FACTOR * deltaSeconds;
+
+            const proposedX = enemyState.x + moveX;
+            const proposedY = enemyState.y + moveY;
+
+            enemyState.x = clamp(
+                proposedX,
+                halfChassisWidth,
+                Math.max(halfChassisWidth, playfield.clientWidth - halfChassisWidth),
+            );
+            enemyState.y = clamp(
+                proposedY,
+                halfChassisHeight,
+                Math.max(halfChassisHeight, playfield.clientHeight - halfChassisHeight),
+            );
+
+            const sweepX = enemyState.x + direction.x * 180;
+            const sweepY = enemyState.y + direction.y * 180;
+            aimTurretTowards(enemyTank, sweepX, sweepY, deltaSeconds, 90);
         };
 
         const step = (timestamp) => {
             const deltaSeconds = Math.min(0.05, (timestamp - previousTimestamp) / 1000);
             previousTimestamp = timestamp;
 
-            const turnInput = (keyState.turnRight ? 1 : 0) - (keyState.turnLeft ? 1 : 0);
-            if (turnInput !== 0) {
-                tankState.hullAngle = (tankState.hullAngle + turnInput * TURN_SPEED * deltaSeconds + 360) % 360;
-            }
-
             let overflowX = 0;
             let overflowY = 0;
 
-            const moveInput = (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0);
-            if (moveInput !== 0) {
-                const direction = forwardComponents(tankState.hullAngle);
-                const fieldWidth = playfield.clientWidth;
-                const fieldHeight = playfield.clientHeight;
+            if (!tankState.isDestroyed) {
+                const turnInput = (keyState.turnRight ? 1 : 0) - (keyState.turnLeft ? 1 : 0);
+                if (turnInput !== 0) {
+                    tankState.hullAngle = (tankState.hullAngle + turnInput * TURN_SPEED * deltaSeconds + 360) % 360;
+                }
 
-                const deltaX = direction.x * moveInput * MOVE_SPEED * deltaSeconds;
-                const deltaY = direction.y * moveInput * MOVE_SPEED * deltaSeconds;
+                const moveInput = (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0);
+                if (moveInput !== 0) {
+                    const direction = forwardComponents(tankState.hullAngle);
+                    const fieldWidth = playfield.clientWidth;
+                    const fieldHeight = playfield.clientHeight;
 
-                const proposedX = tankState.x + deltaX;
-                const proposedY = tankState.y + deltaY;
+                    const deltaMoveX = direction.x * moveInput * MOVE_SPEED * deltaSeconds;
+                    const deltaMoveY = direction.y * moveInput * MOVE_SPEED * deltaSeconds;
 
-                const clampedX = clamp(proposedX, halfChassisWidth, Math.max(halfChassisWidth, fieldWidth - halfChassisWidth));
-                const clampedY = clamp(proposedY, halfChassisHeight, Math.max(halfChassisHeight, fieldHeight - halfChassisHeight));
+                    const proposedX = tankState.x + deltaMoveX;
+                    const proposedY = tankState.y + deltaMoveY;
 
-                overflowX = proposedX - clampedX;
-                overflowY = proposedY - clampedY;
+                    const clampedX = clamp(
+                        proposedX,
+                        halfChassisWidth,
+                        Math.max(halfChassisWidth, fieldWidth - halfChassisWidth),
+                    );
+                    const clampedY = clamp(
+                        proposedY,
+                        halfChassisHeight,
+                        Math.max(halfChassisHeight, fieldHeight - halfChassisHeight),
+                    );
 
-                tankState.x = clampedX;
-                tankState.y = clampedY;
+                    overflowX = proposedX - clampedX;
+                    overflowY = proposedY - clampedY;
+
+                    tankState.x = clampedX;
+                    tankState.y = clampedY;
+                }
             }
 
-            if (tankState.reloadTimer > 0) {
-                tankState.reloadTimer = Math.max(0, tankState.reloadTimer - deltaSeconds);
-                updateReloadBar();
+            allTanks.forEach((tank) => {
+                if (tank.state.reloadTimer > 0) {
+                    tank.state.reloadTimer = Math.max(0, tank.state.reloadTimer - deltaSeconds);
+                    updateReloadBar(tank);
+                }
+            });
+
+            if (keyState.firing && tankState.reloadTimer <= 0 && !tankState.isDestroyed) {
+                fireProjectile(playerTank);
             }
 
-            if (keyState.firing && tankState.reloadTimer <= 0) {
-                fireProjectile();
-            }
+            aimTurretTowards(playerTank, pointerState.x, pointerState.y, deltaSeconds);
+            updateEnemyBehavior(deltaSeconds);
 
-            updateTurretAngle(deltaSeconds);
-            updateTankTransform();
+            allTanks.forEach(updateTankTransform);
             updateBullets(deltaSeconds);
             renderFog(deltaSeconds);
 
@@ -684,8 +1200,10 @@
         window.requestAnimationFrame(step);
 
         window.addEventListener("resize", () => {
-            clampTankPosition();
-            updateTankTransform();
+            allTanks.forEach((tank) => {
+                clampTankPosition(tank);
+                updateTankTransform(tank);
+            });
             initializeFogGrid();
             renderFog(0);
         });
