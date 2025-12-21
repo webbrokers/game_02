@@ -16,8 +16,9 @@
             <span class="menu-brand">WAR TANKS II</span>
         </header>
         <main class="menu-panel select-panel" role="main">
-            <h1 class="panel-title">Выбор миссии</h1>
-            <form class="selection-form" action="play.html" method="get">
+            <h1 class="panel-title" id="mode-title">Выбор миссии</h1>
+            <form class="selection-form" id="play-form" action="play.html" method="get">
+                <input type="hidden" name="room" id="room-id">
                 <section class="selection-group" aria-labelledby="tank-heading">
                     <h2 class="section-title" id="tank-heading">Выбор танка</h2>
                     <div class="card-grid">
@@ -68,5 +69,13 @@
             </form>
         </main>
     </div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const roomId = params.get('room');
+        if (roomId) {
+            document.getElementById('room-id').value = roomId;
+            document.getElementById('mode-title').textContent = 'MULTIPLAYER: ВХОД';
+        }
+    </script>
 </body>
 </html>

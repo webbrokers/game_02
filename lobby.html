@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>War Tanks II — Лобби</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="menu.css" />
+    <!-- Подключаем Supabase через CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/lobby.js" type="module"></script>
+  </head>
+  <body class="menu-screen">
+    <div class="menu-overlay">
+      <header class="menu-header">
+        <a class="menu-brand" href="index.html">WAR TANKS II - MULTIPLAYER</a>
+      </header>
+      <main class="menu-panel lobby-panel" role="main">
+        <div class="lobby-controls">
+          <button id="create-room" class="retro-button">Создать игру</button>
+          <button id="refresh-list" class="retro-button">Обновить</button>
+        </div>
+
+        <div class="rooms-container">
+          <h2 class="form-label">Доступные игры:</h2>
+          <ul id="rooms-list" class="menu-list">
+            <!-- Список комнат будет здесь -->
+            <li class="menu-item">Загрузка...</li>
+          </ul>
+        </div>
+
+        <div class="lobby-footer">
+          <a href="menu.html" class="menu-link">« НАЗАД</a>
+        </div>
+      </main>
+    </div>
+
+    <!-- Модальное окно создания комнаты -->
+    <div id="create-modal" class="modal-overlay" style="display: none">
+      <div class="menu-panel modal-panel">
+        <h2 class="game-title" style="font-size: 16px">Создание игры</h2>
+        <form id="create-form" class="player-form">
+          <label class="form-label">Название:</label>
+          <input
+            type="text"
+            id="room-name"
+            class="retro-input"
+            placeholder="My Tank War"
+            required
+          />
+
+          <label class="form-label">Пароль (опционально):</label>
+          <input
+            type="password"
+            id="room-password"
+            class="retro-input"
+            placeholder="****"
+          />
+
+          <div class="modal-buttons">
+            <button type="submit" class="retro-button">ОК</button>
+            <button type="button" id="cancel-create" class="retro-button">
+              Отмена
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

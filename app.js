@@ -405,7 +405,8 @@
     }
 
     const playfield = document.querySelector(".playfield");
-    if (playfield) {
+    const isMultiplayerMode = new URLSearchParams(window.location.search).has('room');
+    if (playfield && !isMultiplayerMode) {
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
         const MAP_SCALE = 1.875;
