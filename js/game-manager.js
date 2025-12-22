@@ -18,10 +18,14 @@ export class GameManager {
         this.playerTank = null;
         this.enemyTank = null; // В мультиплеере это другой игрок
         this.bullets = [];
+        this.camera = { x: 0, y: 0 };
+        this.viewportWidth = 1024;
+        this.viewportHeight = 800;
         
         this.isMultiplayer = false;
         this.network = null;
         this.isHost = false;
+        this.outcomeShown = false;
 
         this.init();
     }
@@ -31,6 +35,9 @@ export class GameManager {
         const roomId = params.get('room');
         const tankId = params.get('tank') || 'tiger';
         this.isHost = params.get('host') === '1';
+
+        // Очистка плейфилда от возможного мусора из app.js
+        this.playfield.innerHTML = '';
 
         // Инициализация игрока
         this.playerTank = new TankCore({
@@ -82,6 +89,9 @@ export class GameManager {
     }
 
     handleRemotePlayerUpdate(data) {
+        // Защита: не обрабатываем сообщения от самих себя
+        if (this.playerTank && data.id === this.playerTank.id) return;
+
         if (!this.enemyTank) {
             this.enemyTank = new TankCore({
                 id: data.id,
@@ -127,7 +137,11 @@ export class GameManager {
         // 3. Обновление снарядов
         this.updateBullets(delta);
 
-        // 4. Отрисовка
+        // 4. Обновление камеры (центрирование на игроке)
+        this.updateCamera(delta);
+
+        // 5. Отрисовка
+        this.renderer.updateCamera(this.camera);
         this.renderer.updateTank(this.playerTank);
         if (this.enemyTank) {
             this.renderer.updateTank(this.enemyTank);
@@ -196,6 +210,20 @@ export class GameManager {
         }
     }
 
+    updateCamera(delta) {
+        if (!this.playerTank) return;
+        
+        // Плавное следование за игроком
+        const targetX = this.playerTank.x - this.viewportWidth / 2;
+        const targetY = this.playerTank.y - this.viewportHeight / 2;
+        
+        // Ограничение камеры границами мира
+        const mapWidth = 1920;  // WORLD_WIDTH из core.js
+        const mapHeight = 1500; // WORLD_HEIGHT из core.js
+        this.camera.x = Math.max(0, Math.min(mapWidth - this.viewportWidth, targetX));
+        this.camera.y = Math.max(0, Math.min(mapHeight - this.viewportHeight, targetY));
+    }
+
     updatePlayerLogic(delta) {
         if (!this.playerTank || this.playerTank.isDestroyed) return;
 
@@ -214,15 +242,13 @@ export class GameManager {
             this.playerTank.y -= Math.cos(angleRad) * moveDir * moveSpeed * delta;
         }
 
-        // Прицеливание башней за курсором
-        const rect = this.playfield.getBoundingClientRect();
-        // Мы предполагаем, что камера всегда на игроке (упрощенно пока без камеры)
-        // Для точного прицеливания нужно учитывать камеру, как в app.js
-        const targetX = this.input.pointerState.worldX;
-        const targetY = this.input.pointerState.worldY;
+        // Прицеливание башней за курсором с учетом камеры
+        // InputHandler уже хранит viewportX/Y. Нам нужно актуальное положение в мире.
+        const worldMouseX = this.input.pointerState.viewportX + this.camera.x;
+        const worldMouseY = this.input.pointerState.viewportY + this.camera.y;
         
-        const dx = targetX - this.playerTank.x;
-        const dy = targetY - this.playerTank.y;
+        const dx = worldMouseX - this.playerTank.x;
+        const dy = worldMouseY - this.playerTank.y;
         this.playerTank.turretAngle = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
 
         // Стрельба
@@ -284,19 +310,19 @@ export class GameManager {
             const dist = Math.hypot(bullet.x - this.playerTank.x, bullet.y - this.playerTank.y);
             if (dist < 30) {
                 this.playerTank.applyDamage(0.1); 
-                // В реальности урон должен браться из настроек вражеского танка
+                bullet.isDestroyed = true;
                 return true;
             }
         }
 
-        // Проверка попадания во врага (для визуального эффекта)
+        // Проверка попадания во врага
         if (this.enemyTank && bullet.ownerId !== this.enemyTank.id && !this.enemyTank.isDestroyed) {
             const dist = Math.hypot(bullet.x - this.enemyTank.x, bullet.y - this.enemyTank.y);
             if (dist < 30) {
-                // Если не мультиплеер, наносим урон ИИ
                 if (!this.isMultiplayer) {
                     this.enemyTank.applyDamage(0.1);
                 }
+                bullet.isDestroyed = true;
                 return true;
             }
         }

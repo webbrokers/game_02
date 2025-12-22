@@ -1,3 +1,4 @@
 // Конфигурация Supabase
 export const SUPABASE_URL = "https://lxrqfjpowtummnstitha.supabase.co";
-export const SUPABASE_KEY = "sb_publishable_JSSjXef7vIOjpbUWoqZCmw_7Y7NG03S";
+export const SUPABASE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cnFmanBvd3R1bW1uc3RpdGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMjY1NDEsImV4cCI6MjA4MTkwMjU0MX0.sp34TwZ2zRWbmHGxohnrlwBjzrKqyi7rf603XTEGnGk";

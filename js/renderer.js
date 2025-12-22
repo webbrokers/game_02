@@ -72,6 +72,11 @@ export class Renderer {
         this.tanks.set(tankCore.id, elements);
     }
 
+    updateCamera(camera) {
+        // Сдвигаем мир в обратную сторону от камеры
+        this.world.style.transform = `translate3d(${-camera.x}px, ${-camera.y}px, 0)`;
+    }
+
     updateTank(tankCore) {
         const elements = this.tanks.get(tankCore.id);
         if (!elements) return;
