@@ -2,6 +2,7 @@ import { TankCore, BulletCore, WORLD_WIDTH, WORLD_HEIGHT, TANK_PRESETS } from '.
 import { Renderer } from './renderer.js';
 import { InputHandler } from './input.js';
 import { NetworkHandler } from './network.js';
+import { FogRenderer } from './fog.js';
 
 /**
  * War Tanks II - Game Manager
@@ -22,10 +23,11 @@ export class GameManager {
         this.viewportWidth = 1024;
         this.viewportHeight = 800;
         
-        this.isMultiplayer = false;
         this.network = null;
         this.isHost = false;
         this.outcomeShown = false;
+        this.fog = null;
+        this.isEnemyVisible = false;
 
         this.init();
     }
@@ -74,6 +76,7 @@ export class GameManager {
             this.network.onPlayerFire = (data) => this.handleRemoteFire(data);
             
             await this.network.connect();
+            await this.network.connect();
         } else {
             // Режим синглплеера - добавляем ИИ
             this.enemyTank = new TankCore({
@@ -84,6 +87,12 @@ export class GameManager {
             });
             this.renderer.registerTank(this.enemyTank, "tank--enemy");
         }
+
+        // Инициализация тумана войны
+        this.fog = new FogRenderer(this.worldElement);
+
+        // Создаем прицел
+        this.aimCursor = this.renderer.createAimCursor();
 
         requestAnimationFrame((t) => this.gameLoop(t));
     }
@@ -147,7 +156,16 @@ export class GameManager {
             this.renderer.updateTank(this.enemyTank);
         }
 
-        // 5. Сетевая синхронизация
+        // 6. Обновление тумана войны
+        this.updateEnemyVisibility();
+        this.fog.update(this.playerTank, this.enemyTank, this.isEnemyVisible, delta);
+        
+        // Принудительно скрываем врага, если он вне зоны видимости (и не в синглплеере с читами)
+        if (this.enemyTank) {
+            this.renderer.setTankVisibility(this.enemyTank.id, this.isEnemyVisible);
+        }
+
+        // 7. Сетевая синхронизация
         if (this.isMultiplayer && this.playerTank) {
             this.network.sendPosition({
                 id: this.playerTank.id,
@@ -157,14 +175,29 @@ export class GameManager {
                 turretAngle: this.playerTank.turretAngle,
                 health: this.playerTank.health,
                 isDestroyed: this.playerTank.isDestroyed,
-                presetId: this.playerTank.presetId
+                presetId: this.playerTank.presetId,
+                visibleToEnemy: true // Для простоты пока так
             });
         }
 
-        // 6. Проверка условий победы/поражения
+        // 8. Проверка условий победы/поражения
         this.checkGameOutcome();
 
         requestAnimationFrame((t) => this.gameLoop(t));
+    }
+
+    updateEnemyVisibility() {
+        if (!this.playerTank || !this.enemyTank) {
+            this.isEnemyVisible = false;
+            return;
+        }
+
+        const dx = this.playerTank.x - this.enemyTank.x;
+        const dy = this.playerTank.y - this.enemyTank.y;
+        const dist = Math.hypot(dx, dy);
+        
+        // В тумане войны радиус 450
+        this.isEnemyVisible = dist < 420; // Чуть меньше радиуса тумана для красоты
     }
 
     checkGameOutcome() {
@@ -242,14 +275,14 @@ export class GameManager {
             this.playerTank.y -= Math.cos(angleRad) * moveDir * moveSpeed * delta;
         }
 
-        // Прицеливание башней за курсором с учетом камеры
-        // InputHandler уже хранит viewportX/Y. Нам нужно актуальное положение в мире.
+        // Прицеливание башней за курсором с учетом камеры и инерции
         const worldMouseX = this.input.pointerState.viewportX + this.camera.x;
         const worldMouseY = this.input.pointerState.viewportY + this.camera.y;
         
-        const dx = worldMouseX - this.playerTank.x;
-        const dy = worldMouseY - this.playerTank.y;
-        this.playerTank.turretAngle = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+        this.aimTurretTowards(this.playerTank, worldMouseX, worldMouseY, delta);
+        
+        // Обновление позиции прицела
+        this.renderer.updateAimCursor(this.aimCursor, worldMouseX, worldMouseY);
 
         // Стрельба
         if (this.input.keyState.firing && this.playerTank.reloadTimer <= 0) {
@@ -267,6 +300,22 @@ export class GameManager {
         }
 
         this.playerTank.update(delta);
+    }
+
+    aimTurretTowards(tank, targetX, targetY, delta) {
+        const dx = targetX - tank.x;
+        const dy = targetY - tank.y;
+        const targetAngle = (Math.atan2(dx, -dy) * (180 / Math.PI) + 360) % 360;
+        
+        const angleDiff = ((targetAngle - tank.turretAngle + 540) % 360) - 180;
+        const turretTurnRate = 90; // градусов в секунду (можно вынести в пресеты)
+        const maxTurn = turretTurnRate * delta;
+        
+        const appliedTurn = Math.abs(angleDiff) > maxTurn 
+            ? Math.sign(angleDiff) * maxTurn 
+            : angleDiff;
+            
+        tank.turretAngle = (tank.turretAngle + appliedTurn + 360) % 360;
     }
 
     fireProjectile(tank) {

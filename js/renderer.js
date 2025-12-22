@@ -113,4 +113,22 @@ export class Renderer {
     updateBullet(bulletCore, element) {
         element.style.transform = `translate3d(${bulletCore.x - 5}px, ${bulletCore.y - 5}px, 0)`;
     }
+
+    setTankVisibility(tankId, visible) {
+        const elements = this.tanks.get(tankId);
+        if (elements) {
+            elements.root.style.display = visible ? "block" : "none";
+        }
+    }
+
+    createAimCursor() {
+        const cursor = document.createElement("div");
+        cursor.className = "aim-cursor";
+        this.world.appendChild(cursor);
+        return cursor;
+    }
+
+    updateAimCursor(cursor, x, y) {
+        cursor.style.transform = `translate3d(${x - 24}px, ${y - 24}px, 0)`;
+    }
 }

@@ -322,10 +322,10 @@ body.menu-screen {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: #050608 url("images/map-01.png") center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  width: 1920px;
+  height: 1500px;
+  background: #050608 url("images/map-01.png") center / cover no-repeat;
+  image-rendering: auto;
   will-change: transform;
 }
 
@@ -374,6 +374,43 @@ body.menu-screen {
 
 .aim-cursor--visible {
   opacity: 1;
+}
+
+/* Полоски над танком */
+.tank__health,
+.tank__reload {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+.tank__health {
+  bottom: 100%;
+  margin-bottom: 15px;
+}
+
+.tank__reload {
+  bottom: 100%;
+  margin-bottom: 10px;
+}
+
+.tank__health-fill {
+  width: 100%;
+  height: 100%;
+  background: #ff4a4a;
+  transform-origin: left;
+}
+
+.tank__reload-fill {
+  width: 100%;
+  height: 100%;
+  background: #4affd5;
+  transform-origin: left;
 }
 
 .fuel-barrel {

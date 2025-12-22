@@ -62,6 +62,9 @@ export const MissionOutcome = Object.freeze({
     COMPLETED: "completed",
 });
 
+export const CHASSIS_WIDTH = 58;
+export const CHASSIS_HEIGHT = 70;
+
 /**
  * Класс танка (Логика)
  */
@@ -88,6 +91,15 @@ export class TankCore {
         if (this.reloadTimer > 0) {
             this.reloadTimer = Math.max(0, this.reloadTimer - deltaSeconds);
         }
+
+        this.clampPosition();
+    }
+
+    clampPosition() {
+        const halfW = CHASSIS_WIDTH / 2;
+        const halfH = CHASSIS_HEIGHT / 2;
+        this.x = Math.max(halfW, Math.min(WORLD_WIDTH - halfW, this.x));
+        this.y = Math.max(halfH, Math.min(WORLD_HEIGHT - halfH, this.y));
     }
 
     applyDamage(amount) {
