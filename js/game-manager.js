@@ -78,8 +78,10 @@ export class GameManager {
         this.playfield.appendChild(this.worldElement);
         this.renderer.world = this.worldElement;
 
-        // Регистрация своего танка (всегда зеленый)
-        this.renderer.registerTank(this.playerTank, TANK_PRESETS[tankId].variantClass, true);
+        // Регистрация своего танка
+        // Хост всегда зеленый (P1), гость всегда коричневый (P2)
+        const isGreenTank = this.isHost; // Хост = зеленый, гость = коричневый
+        this.renderer.registerTank(this.playerTank, TANK_PRESETS[tankId].variantClass, isGreenTank);
 
         // Слушаем мышь для прицеливания
         this.playfield.addEventListener("pointermove", (e) => {
@@ -102,13 +104,11 @@ export class GameManager {
             await this.network.connect();
             
             // Инициализация HUD для мультиплеера
-            // P1 (слева) всегда Хост, P2 (справа) всегда Гость
+            // Хост (P1) слева, гость (P2) справа
             if (this.isHost) {
                 this.renderer.initHUD(this.playerName, "Ожидание...");
             } else {
-                // Если мы гость, то мы P2 (справа), а хост - P1 (слева)
-                // Но мы пока не знаем имени хоста, Renderer обновит его при получении данных
-                this.renderer.initHUD("Загрузка...", this.playerName);
+                this.renderer.initHUD("Ожидание...", this.playerName);
             }
         } else {
             // Режим синглплеера - добавляем ИИ
@@ -161,8 +161,11 @@ export class GameManager {
                 presetId: data.presetId,
                 isPlayer: false
             });
-            // Регистрируем вражеский танк (всегда коричневый)
-            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, false);
+            // Регистрируем вражеский танк
+            // Если мы хост (P1 зеленый), то противник P2 коричневый
+            // Если мы гость (P2 коричневый), то противник P1 зеленый
+            const isEnemyGreen = !this.isHost; // Противник зеленый если мы не хост
+            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, isEnemyGreen);
             
             // Инициализация целевых значений для интерполяции
             this.enemyTank.targetX = data.x;
@@ -231,17 +234,20 @@ export class GameManager {
             return 1 - (tank.reloadTimer / tank.settings.fireCooldown);
         };
 
+        // Логика HUD: хост (P1) слева, гость (P2) справа
         if (this.isHost) {
+            // Мы хост (P1) - мы слева, противник справа
             hpLeft = this.playerTank ? this.playerTank.health : 0;
             hpRight = this.enemyTank ? this.enemyTank.health : 0;
             nameLeft = this.playerName;
-            nameRight = this.enemyName;
+            nameRight = this.enemyName || "Ожидание...";
             rldLeft = getReloadProgress(this.playerTank);
             rldRight = getReloadProgress(this.enemyTank);
         } else {
+            // Мы гость (P2) - противник слева, мы справа
             hpLeft = this.enemyTank ? this.enemyTank.health : 0;
             hpRight = this.playerTank ? this.playerTank.health : 0;
-            nameLeft = this.enemyName;
+            nameLeft = this.enemyName || "Ожидание...";
             nameRight = this.playerName;
             rldLeft = getReloadProgress(this.enemyTank);
             rldRight = getReloadProgress(this.playerTank);
