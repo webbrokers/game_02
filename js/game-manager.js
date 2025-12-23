@@ -31,6 +31,8 @@ export class GameManager {
 
         this.aimSpread = 0; // Текущий разлет прицела (0-20)
         this.isTurretMoving = false;
+        this.isMouseMoving = false;
+        this.mouseMoveTimer = 0;
 
         this.init();
     }
@@ -67,6 +69,8 @@ export class GameManager {
             const rect = this.playfield.getBoundingClientRect();
             // Пока камера фиксированная, worldX = viewportX (в реальной игре нужно добавить камеру)
             this.input.updatePointer(e, rect, { x: 0, y: 0 }); 
+            this.isMouseMoving = true;
+            this.mouseMoveTimer = 0.1; // Считаем мышь движущейся еще 0.1с после последнего события
         });
 
         if (roomId) {
@@ -309,10 +313,13 @@ export class GameManager {
         // Обновление разлета прицела
         this.aimTurretTowards(this.playerTank, worldMouseX, worldMouseY, delta);
 
-        if (this.isTurretMoving) {
-            this.aimSpread = Math.min(20, this.aimSpread + 1); // Быстрое расширение
+        if (this.mouseMoveTimer > 0) this.mouseMoveTimer -= delta;
+        if (this.mouseMoveTimer <= 0) this.isMouseMoving = false;
+
+        if (this.isTurretMoving || this.isMouseMoving) {
+            this.aimSpread = Math.min(20, this.aimSpread + (20 / 0.2) * delta); // Быстрое расширение за 0.2с
         } else {
-            const shrinkAmount = (20 / 0.5) * delta; // Схождение за 0.5с
+            const shrinkAmount = (20 / 1.0) * delta; // Схождение за 1.0с (согласно ТЗ)
             this.aimSpread = Math.max(0, this.aimSpread - shrinkAmount);
         }
 
@@ -356,7 +363,10 @@ export class GameManager {
 
     fireProjectile(tank) {
         // Добавляем случайное отклонение на основе разлета
-        const spreadRad = (this.aimSpread * (Math.random() - 0.5) * 0.1); 
+        // Максимальный разброс 10 градусов (±5 градусов) при aimSpread = 20
+        const maxSpreadDeg = 5; 
+        const currentSpreadDeg = (this.aimSpread / 20) * maxSpreadDeg;
+        const spreadRad = (currentSpreadDeg * (Math.random() - 0.5) * 2) * (Math.PI / 180); 
         const angleRad = (tank.turretAngle * (Math.PI / 180)) + spreadRad;
         
         const bullet = new BulletCore({

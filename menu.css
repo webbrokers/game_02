@@ -324,7 +324,7 @@ body.menu-screen {
   left: 0;
   width: 1920px;
   height: 1500px;
-  background: #050608 url("images/map-01.png") center / cover no-repeat;
+  background: #050608 url("images/map-01.png") center / 100% 100% no-repeat;
   image-rendering: auto;
   will-change: transform;
 }
