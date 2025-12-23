@@ -107,10 +107,16 @@
         </form>
       </main>
     </div>
-    <script>
+    <script type="module">
+      import { SUPABASE_URL, SUPABASE_KEY } from './js/supabase-config.js';
+
       const params = new URLSearchParams(window.location.search);
       const roomId = params.get("room");
+      const isHost = params.get("host") === "1";
       const copyBtn = document.getElementById("copy-link");
+      
+      let isNavigatingAway = false;
+
       if (roomId) {
         document.getElementById("room-id").value = roomId;
         document.getElementById("mode-title").textContent = "MULTIPLAYER: ВХОД";
@@ -134,6 +140,46 @@
           });
         };
       }
+
+      // Функция закрытия комнаты (beacon)
+      function closeRoomBeacon(id) {
+        if (!id) return;
+        const body = JSON.stringify({ status: 'closed' });
+        const url = `${SUPABASE_URL}/rest/v1/rooms?id=eq.${id}`;
+        fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: body,
+          keepalive: true
+        });
+      }
+
+      // Обработка перехода
+      const playForm = document.getElementById('play-form');
+      playForm.onsubmit = (e) => {
+        // Если нажата кнопка "В бой!", то мы продолжаем игру в этой комнате
+        if (e.submitter && e.submitter.value === 'start') {
+          isNavigatingAway = true;
+        } else {
+          // Если "Назад", то закрываем комнату (isNavigatingAway остается false, сработает beforeunload)
+          // Или закрываем явно здесь для надежности
+          if (isHost && roomId) {
+            closeRoomBeacon(roomId);
+          }
+        }
+      };
+
+      // Обработка выхода
+      window.addEventListener('beforeunload', () => {
+        if (isHost && roomId && !isNavigatingAway) {
+          closeRoomBeacon(roomId);
+        }
+      });
     </script>
   </body>
 </html>

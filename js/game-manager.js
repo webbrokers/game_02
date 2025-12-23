@@ -113,8 +113,8 @@ export class GameManager {
 
         // Закрытие комнаты при выходе (для хоста)
         window.addEventListener('beforeunload', () => {
-            if (this.isHost && this.isMultiplayer && this.network) {
-                this.network.closeRoom();
+            if (this.isHost && this.isMultiplayer && roomId) {
+                NetworkHandler.closeRoomBeacon(roomId);
             }
         });
 

@@ -72,4 +72,27 @@ export class NetworkHandler {
             
         if (error) console.error('Error closing room:', error);
     }
+
+    /**
+     * Закрытие комнаты через beacon (для beforeunload)
+     */
+    static closeRoomBeacon(roomId) {
+        if (!roomId) return;
+        
+        const body = JSON.stringify({ status: 'closed' });
+        const url = `${SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}`;
+        
+        // Используем fetch с keepalive: true для отправки запроса после закрытия вкладки
+        fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            },
+            body: body,
+            keepalive: true
+        }).catch(err => console.error('Beacon error:', err));
+    }
 }

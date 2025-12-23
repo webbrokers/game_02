@@ -11,6 +11,9 @@ const modal = document.getElementById('create-modal');
 const cancelBtn = document.getElementById('cancel-create');
 const createForm = document.getElementById('create-form');
 
+// Флаг для предотвращения удаления комнаты при переходе на другую страницу игры
+let isNavigatingAway = false;
+
 // Загрузка списка комнат
 async function fetchRooms() {
     roomsList.innerHTML = '<li class="menu-item">Загрузка...</li>';
@@ -94,16 +97,63 @@ createForm.onsubmit = async (e) => {
     }
 
     const room = data[0];
+    // Помечаем, что мы хост этой комнаты
+    sessionStorage.setItem('wt2:hosted-room-id', room.id);
+    isNavigatingAway = true;
+    
     // Переходим на выбор танка с ID комнаты
     window.location.href = `select.html?room=${room.id}&host=1`;
 };
 
+/**
+ * Закрытие комнаты в БД
+ */
+async function closeHostedRoom() {
+    const roomId = sessionStorage.getItem('wt2:hosted-room-id');
+    if (!roomId) return;
+
+    // Используем fetch с keepalive для надежности при закрытии вкладки
+    const body = JSON.stringify({ status: 'closed' });
+    const url = `${SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}`;
+    
+    try {
+        await fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            },
+            body: body,
+            keepalive: true
+        });
+        sessionStorage.removeItem('wt2:hosted-room-id');
+    } catch (e) {
+        console.error('Ошибка при закрытии комнаты:', e);
+    }
+}
+
+// Обработка перехода на другие страницы (чтобы не закрывать комнату)
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (link) {
+        isNavigatingAway = true;
+    }
+});
+
+// Обработка выхода со страницы
+window.addEventListener('beforeunload', () => {
+    if (!isNavigatingAway) {
+        closeHostedRoom();
+    }
+});
+
+// Дополнительно: закрытие комнаты если нажали кнопку "Назад" в браузере
+window.addEventListener('popstate', () => {
+    closeHostedRoom();
+});
+
 // Инициализация
 refreshBtn.onclick = fetchRooms;
 fetchRooms();
-
-// Удаление комнаты при выходе (если хост) - базовая реализация
-window.onbeforeunload = () => {
-    // В идеале это должно быть через Supabase Presence или Edge Function
-    // Но для начала просто уведомление в базу если успеем
-};
