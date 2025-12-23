@@ -10,7 +10,7 @@
     const TANK_PRESETS = Object.freeze({
         tiger: Object.freeze({
             id: "tiger",
-            displayName: "Tiger MK II",
+            displayName: "Tiger MK-II",
             variantClass: "tank--player tank--tiger-mk-ii",
             defaults: Object.freeze({
                 moveSpeed: 220,
@@ -20,7 +20,7 @@
         }),
         phantom: Object.freeze({
             id: "phantom",
-            displayName: "FANTOM X",
+            displayName: "Phantom X",
             variantClass: "tank--player tank--phantom-x",
             defaults: Object.freeze({
                 moveSpeed: 280,
@@ -30,7 +30,7 @@
         }),
         crusher: Object.freeze({
             id: "crusher",
-            displayName: "CRUSHER 88",
+            displayName: "Crusher 88",
             variantClass: "tank--player tank--crusher-88",
             defaults: Object.freeze({
                 moveSpeed: 170,
@@ -323,6 +323,36 @@
 
     const interactiveButtons = document.querySelectorAll(".menu-link, .retro-button, .play-menu-button");
     interactiveButtons.forEach(registerInteractiveElement);
+
+    // Логика переключения разделов меню (Records, Credits)
+    const updateMenuVisibility = () => {
+        const hash = window.location.hash;
+        const mainPanel = document.querySelector(".main-menu-panel");
+        const recordsPanel = document.getElementById("records-panel");
+        const creditsPanel = document.getElementById("credits-panel");
+
+        if (!mainPanel) return;
+
+        // Скрываем все панели по умолчанию
+        mainPanel.style.display = "none";
+        if (recordsPanel) recordsPanel.style.display = "none";
+        if (creditsPanel) creditsPanel.style.display = "none";
+
+        if (hash === "#records" && recordsPanel) {
+            recordsPanel.style.display = "flex";
+        } else if (hash === "#credits" && creditsPanel) {
+            creditsPanel.style.display = "flex";
+        } else {
+            mainPanel.style.display = "flex";
+        }
+    };
+
+    window.addEventListener("hashchange", updateMenuVisibility);
+    updateMenuVisibility();
+
+    // Регистрация кнопок "BACK" в подменю
+    const backButtons = document.querySelectorAll(".back-to-main");
+    backButtons.forEach(registerInteractiveElement);
 
     const settingsForm = document.querySelector(".settings-form");
     if (settingsForm) {
@@ -1729,6 +1759,7 @@
         });
 
         initializeFogGrid();
+    }
 
     const forms = document.querySelectorAll("form");
     forms.forEach((form) => {

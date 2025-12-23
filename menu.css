@@ -1664,3 +1664,62 @@ body.play-screen .playfield {
   color: #fff;
   text-shadow: 1px 1px 1px #000;
 }
+/* Стили для новых разделов меню */
+.secondary-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: panelFadeIn 0.3s ease-out;
+}
+
+@keyframes panelFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.records-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.record-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 4px solid var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.1rem;
+}
+
+.credits-content {
+  text-align: center;
+  line-height: 1.6;
+}
+
+.credits-content p {
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.accent-text {
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(255, 213, 74, 0.5);
+}
+
+.muted-text {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 0.6rem !important;
+  letter-spacing: 0.15rem;
+}
+
+.back-to-main {
+  width: 100%;
+  margin-top: 1rem;
+}
