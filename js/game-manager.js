@@ -279,7 +279,7 @@ export class GameManager {
                 this.networkUpdateTimer = 0;
                 
                 // Используем delta compression для снижения трафика
-                this.network.sendPositionDelta({
+                this.network.sendPosition({
                     id: this.myPlayerId,  // Отправляем детерминированный ID
                     name: this.playerName,
                     x: this.playerTank.x,
