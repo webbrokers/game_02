@@ -34,6 +34,10 @@ export class GameManager {
         this.isMouseMoving = false;
         this.mouseMoveTimer = 0;
 
+        // Throttling для сетевых обновлений (100мс = 10 обновлений/сек)
+        this.networkUpdateTimer = 0;
+        this.networkUpdateInterval = 0.1; // 100мс
+
         this.init();
     }
 
@@ -148,14 +152,24 @@ export class GameManager {
             // Если мы гость (P2), значит удаленный игрок - хост (P1)
             const remoteRole = this.isHost ? 'p2' : 'p1';
             this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, remoteRole);
+            
+            // Инициализация целевых значений для интерполяции
+            this.enemyTank.targetX = data.x;
+            this.enemyTank.targetY = data.y;
+            this.enemyTank.targetHullAngle = data.hullAngle || 0;
+            this.enemyTank.targetTurretAngle = data.turretAngle || 0;
         }
         
-        this.enemyTank.x = data.x;
-        this.enemyTank.y = data.y;
-        this.enemyTank.hullAngle = data.hullAngle;
-        this.enemyTank.turretAngle = data.turretAngle;
-        this.enemyTank.health = data.health;
-        this.enemyTank.isDestroyed = data.isDestroyed;
+        // Обновляем целевые значения для интерполяции (вместо мгновенного применения)
+        // Delta compression - обновляем только переданные поля
+        if (data.x !== undefined) this.enemyTank.targetX = data.x;
+        if (data.y !== undefined) this.enemyTank.targetY = data.y;
+        if (data.hullAngle !== undefined) this.enemyTank.targetHullAngle = data.hullAngle;
+        if (data.turretAngle !== undefined) this.enemyTank.targetTurretAngle = data.turretAngle;
+        
+        // Здоровье и состояние обновляем мгновенно (критичные данные)
+        if (data.health !== undefined) this.enemyTank.health = data.health;
+        if (data.isDestroyed !== undefined) this.enemyTank.isDestroyed = data.isDestroyed;
     }
 
     handleRemoteFire(data) {
@@ -179,6 +193,9 @@ export class GameManager {
         // 2. Обновление врагов / ИИ
         if (!this.isMultiplayer && this.enemyTank) {
             this.updateAILogic(delta);
+        } else if (this.isMultiplayer && this.enemyTank) {
+            // В мультиплеере применяем интерполяцию для плавности
+            this.interpolateEnemyTank(delta);
         }
 
         // 3. Обновление снарядов
@@ -230,20 +247,28 @@ export class GameManager {
             this.renderer.setTankVisibility(this.enemyTank.id, this.isEnemyVisible);
         }
 
-        // 7. Сетевая синхронизация
+        // 7. Сетевая синхронизация (throttled)
         if (this.isMultiplayer && this.playerTank) {
-            this.network.sendPosition({
-                id: this.playerTank.id,
-                name: this.playerName,
-                x: this.playerTank.x,
-                y: this.playerTank.y,
-                hullAngle: this.playerTank.hullAngle,
-                turretAngle: this.playerTank.turretAngle,
-                health: this.playerTank.health,
-                isDestroyed: this.playerTank.isDestroyed,
-                presetId: this.playerTank.presetId,
-                visibleToEnemy: true // Для простоты пока так
-            });
+            // Обновляем таймер
+            this.networkUpdateTimer += delta;
+            
+            // Отправляем обновление только раз в 100мс
+            if (this.networkUpdateTimer >= this.networkUpdateInterval) {
+                this.networkUpdateTimer = 0;
+                
+                // Используем delta compression для снижения трафика
+                this.network.sendPositionDelta({
+                    id: this.playerTank.id,
+                    name: this.playerName,
+                    x: this.playerTank.x,
+                    y: this.playerTank.y,
+                    hullAngle: this.playerTank.hullAngle,
+                    turretAngle: this.playerTank.turretAngle,
+                    health: this.playerTank.health,
+                    isDestroyed: this.playerTank.isDestroyed,
+                    presetId: this.playerTank.presetId
+                });
+            }
         }
 
         // 8. Проверка условий победы/поражения
@@ -264,6 +289,51 @@ export class GameManager {
         
         // В тумане войны радиус 450
         this.isEnemyVisible = dist < 420; // Чуть меньше радиуса тумана для красоты
+    }
+
+    /**
+     * Интерполяция вражеского танка для плавного движения между обновлениями
+     * Компенсирует редкие сетевые обновления (10 раз/сек вместо 60)
+     */
+    interpolateEnemyTank(delta) {
+        if (!this.enemyTank) return;
+        
+        // Инициализация целевых значений при первом вызове
+        if (this.enemyTank.targetX === undefined) {
+            this.enemyTank.targetX = this.enemyTank.x;
+            this.enemyTank.targetY = this.enemyTank.y;
+            this.enemyTank.targetHullAngle = this.enemyTank.hullAngle;
+            this.enemyTank.targetTurretAngle = this.enemyTank.turretAngle;
+            return;
+        }
+        
+        // Скорость интерполяции (чем выше, тем быстрее догоняет)
+        const lerpSpeed = 8; // Догоняет за ~125мс
+        const angleLerpSpeed = 10; // Углы чуть быстрее
+        
+        // Линейная интерполяция позиции
+        const dx = this.enemyTank.targetX - this.enemyTank.x;
+        const dy = this.enemyTank.targetY - this.enemyTank.y;
+        this.enemyTank.x += dx * lerpSpeed * delta;
+        this.enemyTank.y += dy * lerpSpeed * delta;
+        
+        // Интерполяция углов (с учетом кругового характера)
+        const interpolateAngle = (current, target, speed) => {
+            let diff = ((target - current + 540) % 360) - 180;
+            return (current + diff * speed * delta + 360) % 360;
+        };
+        
+        this.enemyTank.hullAngle = interpolateAngle(
+            this.enemyTank.hullAngle, 
+            this.enemyTank.targetHullAngle, 
+            angleLerpSpeed
+        );
+        
+        this.enemyTank.turretAngle = interpolateAngle(
+            this.enemyTank.turretAngle, 
+            this.enemyTank.targetTurretAngle, 
+            angleLerpSpeed
+        );
     }
 
     checkGameOutcome() {

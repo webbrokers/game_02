@@ -13,6 +13,9 @@ export class NetworkHandler {
         this.onPlayerFire = null;   // Callback для выстрела
         this.onPlayerJoined = null;
         
+        // Для delta compression - сохраняем последнее отправленное состояние
+        this.lastSentState = null;
+        
         const { createClient } = supabase;
         this.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     }
@@ -52,6 +55,80 @@ export class NetworkHandler {
             event: 'position',
             payload: data
         });
+    }
+
+    /**
+     * Отправка только изменившихся полей (delta compression)
+     * Снижает размер сообщения в 2-3 раза
+     */
+    sendPositionDelta(data) {
+        if (!this.channel) return;
+        
+        // Первая отправка - отправляем все поля
+        if (!this.lastSentState) {
+            this.lastSentState = { ...data };
+            this.sendPosition(data);
+            return;
+        }
+        
+        // Формируем delta - только изменившиеся поля
+        const delta = { id: data.id }; // ID всегда нужен для идентификации
+        let hasChanges = false;
+        
+        // Проверяем каждое поле на изменение
+        const threshold = 0.5; // Порог для позиции/углов (игнорируем микроизменения)
+        
+        if (data.name !== this.lastSentState.name) {
+            delta.name = data.name;
+            hasChanges = true;
+        }
+        
+        if (Math.abs(data.x - this.lastSentState.x) > threshold) {
+            delta.x = data.x;
+            hasChanges = true;
+        }
+        
+        if (Math.abs(data.y - this.lastSentState.y) > threshold) {
+            delta.y = data.y;
+            hasChanges = true;
+        }
+        
+        if (Math.abs(data.hullAngle - this.lastSentState.hullAngle) > threshold) {
+            delta.hullAngle = data.hullAngle;
+            hasChanges = true;
+        }
+        
+        if (Math.abs(data.turretAngle - this.lastSentState.turretAngle) > threshold) {
+            delta.turretAngle = data.turretAngle;
+            hasChanges = true;
+        }
+        
+        if (Math.abs(data.health - this.lastSentState.health) > 0.01) {
+            delta.health = data.health;
+            hasChanges = true;
+        }
+        
+        if (data.isDestroyed !== this.lastSentState.isDestroyed) {
+            delta.isDestroyed = data.isDestroyed;
+            hasChanges = true;
+        }
+        
+        if (data.presetId !== this.lastSentState.presetId) {
+            delta.presetId = data.presetId;
+            hasChanges = true;
+        }
+        
+        // Отправляем только если есть изменения
+        if (hasChanges) {
+            this.channel.send({
+                type: 'broadcast',
+                event: 'position',
+                payload: delta
+            });
+            
+            // Обновляем последнее отправленное состояние
+            this.lastSentState = { ...data };
+        }
     }
 
     sendFire(data) {

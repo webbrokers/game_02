@@ -23,11 +23,25 @@
     </div>
     <script>
         // Сохранение имени игрока перед переходом в меню
-        document.querySelector('.player-form').onsubmit = function(e) {
+        // Используем capture фазу, чтобы сработать ДО app.js
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('.player-form');
             const nameInput = document.getElementById('player-name');
-            const name = nameInput.value.trim() || 'Commander';
-            localStorage.setItem('wt2:player-name', name);
-        };
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // Функция сохранения имени
+            const saveName = function() {
+                const name = nameInput.value.trim() || 'Commander';
+                localStorage.setItem('wt2:player-name', name);
+                console.log('Имя игрока сохранено:', name);
+            };
+            
+            // Сохраняем при отправке формы (capture фаза - срабатывает первым)
+            form.addEventListener('submit', saveName, true);
+            
+            // Дополнительно сохраняем при клике на кнопку (для надежности)
+            submitBtn.addEventListener('click', saveName, true);
+        });
     </script>
 </body>
 </html>
