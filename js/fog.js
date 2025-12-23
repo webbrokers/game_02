@@ -72,11 +72,6 @@ export class FogRenderer {
             applyReveal(playerTank.x, playerTank.y);
         }
 
-        // Если враг видим (по прямой видимости), он тоже открывает туман
-        if (enemyTank && !enemyTank.isDestroyed && isEnemyVisible) {
-            applyReveal(enemyTank.x, enemyTank.y);
-        }
-
         this.draw();
     }
 

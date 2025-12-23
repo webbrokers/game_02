@@ -38,11 +38,11 @@ async function fetchRooms() {
     roomsList.innerHTML = '';
     data.forEach(room => {
         const li = document.createElement('li');
-        li.className = 'menu-item';
+        li.className = 'menu-item-container'; // Используем новый класс контейнера
         
         const a = document.createElement('a');
         a.href = `select.html?room=${room.id}${room.has_password ? '&pw=1' : ''}`;
-        a.className = 'menu-link';
+        a.className = 'menu-link room-link';
         a.innerHTML = `${room.name} ${room.has_password ? '🔒' : ''}`;
         
         a.onclick = (e) => {
@@ -56,9 +56,46 @@ async function fetchRooms() {
             }
         };
 
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-room-btn';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.title = 'Удалить комнату';
+        deleteBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (room.has_password) {
+                const pass = prompt('Для удаления введите пароль комнаты:');
+                if (pass !== room.password) {
+                    alert('Неверный пароль! Удаление отменено.');
+                    return;
+                }
+            } else {
+                if (!confirm(`Вы уверены, что хотите удалить комнату "${room.name}"?`)) {
+                    return;
+                }
+            }
+            await deleteRoom(room.id);
+        };
+
         li.appendChild(a);
+        li.appendChild(deleteBtn);
         roomsList.appendChild(li);
     });
+}
+
+/**
+ * Ручное удаление комнаты
+ */
+async function deleteRoom(id) {
+    const { error } = await supabaseClient
+        .from('rooms')
+        .update({ status: 'closed' })
+        .eq('id', id);
+
+    if (error) {
+        alert('Ошибка при удалении: ' + error.message);
+    } else {
+        fetchRooms(); // Обновляем список
+    }
 }
 
 // Показ модалки

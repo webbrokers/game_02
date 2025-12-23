@@ -62,7 +62,9 @@ export class GameManager {
         this.playfield.appendChild(this.worldElement);
         this.renderer.world = this.worldElement;
 
-        this.renderer.registerTank(this.playerTank, TANK_PRESETS[tankId].variantClass);
+        // Регистрация игрока с учетом роли
+        const playerRole = this.isHost ? 'p1' : 'p2';
+        this.renderer.registerTank(this.playerTank, TANK_PRESETS[tankId].variantClass, playerRole);
 
         // Слушаем мышь для прицеливания
         this.playfield.addEventListener("pointermove", (e) => {
@@ -85,7 +87,14 @@ export class GameManager {
             await this.network.connect();
             
             // Инициализация HUD для мультиплеера
-            this.renderer.initHUD(this.playerName, null);
+            // P1 (слева) всегда Хост, P2 (справа) всегда Гость
+            if (this.isHost) {
+                this.renderer.initHUD(this.playerName, "Ожидание...");
+            } else {
+                // Если мы гость, то мы P2 (справа), а хост - P1 (слева)
+                // Но мы пока не знаем имени хоста, Renderer обновит его при получении данных
+                this.renderer.initHUD("Загрузка...", this.playerName);
+            }
         } else {
             // Режим синглплеера - добавляем ИИ
             const pName = localStorage.getItem('wt2:player-name') || 'Commander';
@@ -97,8 +106,9 @@ export class GameManager {
             });
             this.renderer.registerTank(this.enemyTank, "tank--enemy");
             
-            // Инициализация HUD для синглплеера
+            // В сингле мы всегда P1
             this.renderer.initHUD(pName, "AI: Tiger MK-II");
+            this.enemyName = "AI: Tiger MK-II";
         }
 
         // Инициализация тумана войны
@@ -127,14 +137,17 @@ export class GameManager {
 
         if (!this.enemyTank) {
             this.enemyName = data.name || 'Enemy';
-            this. enemyTank = new TankCore({
+            this.enemyTank = new TankCore({
                 id: data.id,
                 x: data.x,
                 y: data.y,
                 presetId: data.presetId,
                 isPlayer: false
             });
-            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass.replace('tank--player', 'tank--enemy'));
+            // Если мы хост (P1), значит удаленный игрок - гость (P2)
+            // Если мы гость (P2), значит удаленный игрок - хост (P1)
+            const remoteRole = this.isHost ? 'p2' : 'p1';
+            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, remoteRole);
         }
         
         this.enemyTank.x = data.x;
@@ -182,9 +195,31 @@ export class GameManager {
         }
 
         // 5.1 Обновление HUD
-        const hp1 = this.playerTank ? this.playerTank.health : 0;
-        const hp2 = this.enemyTank ? this.enemyTank.health : 0;
-        this.renderer.updateHUD(hp1, hp2, this.enemyName);
+        // HP1 (лево) -> Хост, HP2 (право) -> Гость
+        let hpLeft, hpRight, nameLeft, nameRight, rldLeft, rldRight;
+        
+        const getReloadProgress = (tank) => {
+            if (!tank) return 0;
+            return 1 - (tank.reloadTimer / tank.settings.fireCooldown);
+        };
+
+        if (this.isHost) {
+            hpLeft = this.playerTank ? this.playerTank.health : 0;
+            hpRight = this.enemyTank ? this.enemyTank.health : 0;
+            nameLeft = this.playerName;
+            nameRight = this.enemyName;
+            rldLeft = getReloadProgress(this.playerTank);
+            rldRight = getReloadProgress(this.enemyTank);
+        } else {
+            hpLeft = this.enemyTank ? this.enemyTank.health : 0;
+            hpRight = this.playerTank ? this.playerTank.health : 0;
+            nameLeft = this.enemyName;
+            nameRight = this.playerName;
+            rldLeft = getReloadProgress(this.enemyTank);
+            rldRight = getReloadProgress(this.playerTank);
+        }
+
+        this.renderer.updateHUD(hpLeft, hpRight, nameLeft, nameRight, rldLeft, rldRight, this.isEnemyVisible || !this.isMultiplayer);
 
         // 6. Обновление тумана войны
         this.updateEnemyVisibility();
@@ -350,7 +385,7 @@ export class GameManager {
         const targetAngle = (Math.atan2(dx, -dy) * (180 / Math.PI) + 360) % 360;
         
         const angleDiff = ((targetAngle - tank.turretAngle + 540) % 360) - 180;
-        const turretTurnRate = 30; // 30 градусов в секунду (в 3 раза медленнее)
+        const turretTurnRate = 45; // 45 градусов в секунду (увеличено на 50%)
         const maxTurn = turretTurnRate * delta;
         
         const appliedTurn = Math.abs(angleDiff) > maxTurn 
@@ -364,7 +399,7 @@ export class GameManager {
     fireProjectile(tank) {
         // Добавляем случайное отклонение на основе разлета
         // Максимальный разброс 10 градусов (±5 градусов) при aimSpread = 20
-        const maxSpreadDeg = 5; 
+        const maxSpreadDeg = 15; 
         const currentSpreadDeg = (this.aimSpread / 20) * maxSpreadDeg;
         const spreadRad = (currentSpreadDeg * (Math.random() - 0.5) * 2) * (Math.PI / 180); 
         const angleRad = (tank.turretAngle * (Math.PI / 180)) + spreadRad;

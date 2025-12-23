@@ -70,8 +70,14 @@ export class Renderer {
         };
     }
 
-    registerTank(tankCore, variantClass) {
-        const elements = this.createTankElements(variantClass);
+    registerTank(tankCore, variantClass, role = 'p1') {
+        // P1 всегда использует базовый класс (зеленый), P2 всегда использует вражеский класс (коричневый)
+        const finalClass = role === 'p1' ? 'tank--player' : 'tank--enemy';
+        // Также добавляем специфичный класс пресета (tiger/phantom/crusher)
+        const presetClass = variantClass.includes('tiger') ? 'tank--tiger-mk-ii' : 
+                           (variantClass.includes('phantom') ? 'tank--phantom-x' : 'tank--crusher-88');
+        
+        const elements = this.createTankElements(`${finalClass} ${presetClass}`);
         this.world.appendChild(elements.root);
         this.tanks.set(tankCore.id, elements);
     }
@@ -183,10 +189,17 @@ export class Renderer {
             bar.appendChild(fill);
             bar.appendChild(label);
             
+            const reloadBar = document.createElement("div");
+            reloadBar.className = "hud-reload-bar";
+            const reloadFill = document.createElement("div");
+            reloadFill.className = "hud-reload-fill";
+            reloadBar.appendChild(reloadFill);
+            
             player.appendChild(header);
             player.appendChild(bar);
+            player.appendChild(reloadBar);
             
-            return { root: player, fill, label };
+            return { root: player, fill, label, reloadFill };
         };
 
         this.hud.left = createPlayerInfo(p1Name, "left");
@@ -198,19 +211,39 @@ export class Renderer {
         document.body.appendChild(hudContainer);
     }
 
-    updateHUD(hp1, hp2, p2Name) {
+    updateHUD(hp1, hp2, name1, name2, rld1, rld2, p2Visible = true) {
         if (this.hud.left) {
+            if (name1 && this.hud.left.root.querySelector('.hud-name').textContent === "Загрузка...") {
+                this.hud.left.root.querySelector('.hud-name').textContent = name1;
+            }
             const p1Val = Math.max(0, Math.ceil(hp1 * 100));
             this.hud.left.fill.style.width = `${p1Val}%`;
             this.hud.left.label.textContent = `${p1Val}%`;
+            if (this.hud.left.reloadFill) {
+                this.hud.left.reloadFill.style.transform = `scaleX(${Math.max(0, Math.min(1, rld1))})`;
+            }
         }
         if (this.hud.right) {
-            if (p2Name && this.hud.right.root.querySelector('.hud-name').textContent === "Ожидание...") {
-                this.hud.right.root.querySelector('.hud-name').textContent = p2Name;
+            if (name2 && (this.hud.right.root.querySelector('.hud-name').textContent === "Ожидание..." || 
+                         this.hud.right.root.querySelector('.hud-name').textContent === "Загрузка...")) {
+                this.hud.right.root.querySelector('.hud-name').textContent = name2;
             }
+            
             const p2Val = Math.max(0, Math.ceil(hp2 * 100));
-            this.hud.right.fill.style.width = `${p2Val}%`;
-            this.hud.right.label.textContent = `${p2Val}%`;
+            if (p2Visible) {
+                this.hud.right.fill.style.width = `${p2Val}%`;
+                this.hud.right.label.textContent = `${p2Val}%`;
+                this.hud.right.root.classList.remove('hud-player--hidden');
+                if (this.hud.right.reloadFill) {
+                    this.hud.right.reloadFill.style.transform = `scaleX(${Math.max(0, Math.min(1, rld2))})`;
+                }
+            } else {
+                this.hud.right.label.textContent = "???";
+                this.hud.right.root.classList.add('hud-player--hidden');
+                if (this.hud.right.reloadFill) {
+                    this.hud.right.reloadFill.style.transform = `scaleX(0)`;
+                }
+            }
         }
     }
 }

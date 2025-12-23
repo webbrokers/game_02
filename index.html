@@ -21,5 +21,13 @@
             </form>
         </main>
     </div>
+    <script>
+        // Сохранение имени игрока перед переходом в меню
+        document.querySelector('.player-form').onsubmit = function(e) {
+            const nameInput = document.getElementById('player-name');
+            const name = nameInput.value.trim() || 'Commander';
+            localStorage.setItem('wt2:player-name', name);
+        };
+    </script>
 </body>
 </html>
