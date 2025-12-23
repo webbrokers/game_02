@@ -1,7 +1,7 @@
 import { TankCore, BulletCore, WORLD_WIDTH, WORLD_HEIGHT, TANK_PRESETS } from './core.js';
 import { Renderer } from './renderer.js';
 import { InputHandler } from './input.js';
-import { NetworkHandler } from './network.js';
+import { ConnectionManager } from './connection-manager.js';
 import { FogRenderer } from './fog.js';
 
 /**
@@ -95,11 +95,16 @@ export class GameManager {
         if (roomId) {
             this.isMultiplayer = true;
             this.playerName = localStorage.getItem('wt2:player-name') || 'Commander';
-            this.network = new NetworkHandler(roomId, this.playerName);
+            this.network = new ConnectionManager(roomId, this.playerName, this.isHost);
             
             // Настройка сетевых коллбэков
             this.network.onPlayerUpdate = (data) => this.handleRemotePlayerUpdate(data);
             this.network.onPlayerFire = (data) => this.handleRemoteFire(data);
+            this.network.onConnectionReady = (mode) => {
+                console.log(`✅ Подключено через ${mode === 'webrtc' ? 'WebRTC P2P' : 'Supabase Broadcast'}`);
+                // Показываем индикатор режима в HUD
+                this.currentNetworkMode = mode;
+            };
             
             await this.network.connect();
             

@@ -52,6 +52,7 @@
           method="get"
         >
           <input type="hidden" name="room" id="room-id" />
+          <input type="hidden" name="host" id="host-input" />
           <section class="selection-group" aria-labelledby="tank-heading">
             <h2 class="section-title" id="tank-heading">Выбор танка</h2>
             <div class="card-grid">
@@ -149,6 +150,7 @@
         if (!roomId) return;
 
         document.getElementById("room-id").value = roomId;
+        document.getElementById("host-input").value = isHost ? "1" : "0";
         document.getElementById("mode-title").textContent = "MULTIPLAYER: ВХОД";
         
         // Show lobby UI

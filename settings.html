@@ -78,6 +78,32 @@
                         </div>
                     </section>
                 </div>
+                
+                <!-- Настройки сети -->
+                <div class="settings-grid" style="margin-top: 2rem;">
+                    <section class="settings-column" style="width: 100%; max-width: none;">
+                        <h2 class="settings-column__title">Сетевой режим</h2>
+                        <p class="settings-column__subtitle">Выберите протокол для мультиплеера</p>
+                        
+                        <div class="settings-field" style="display: flex; gap: 2rem; align-items: flex-start;">
+                            <label class="settings-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="network-mode" value="webrtc" checked>
+                                <div>
+                                    <span style="display: block; font-weight: bold; margin-bottom: 0.25rem;">WebRTC P2P (Рекомендуется)</span>
+                                    <span style="display: block; font-size: 0.8em; opacity: 0.8; font-weight: normal;">Прямое соединение между игроками. Нет лимитов на сообщения. Минимальная задержка.</span>
+                                </div>
+                            </label>
+                            
+                            <label class="settings-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="network-mode" value="supabase">
+                                <div>
+                                    <span style="display: block; font-weight: bold; margin-bottom: 0.25rem;">Supabase Broadcast</span>
+                                    <span style="display: block; font-size: 0.8em; opacity: 0.8; font-weight: normal;">Через сервер. Ограничено квотой (2 млн/мес). Более высокая задержка.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </section>
+                </div>
                 <p class="settings-feedback" role="status" aria-live="polite"></p>
                 <div class="button-row">
                     <a class="retro-button ghost" href="menu.html">Назад</a>
@@ -86,5 +112,24 @@
             </form>
         </main>
     </div>
+    <script>
+        // Логика настроек сети
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('.settings-form');
+            const feedback = document.querySelector('.settings-feedback');
+            
+            // Загрузка сохраненного режима
+            const savedMode = localStorage.getItem('wt2:network-mode') || 'webrtc';
+            const radio = document.querySelector(`input[name="network-mode"][value="${savedMode}"]`);
+            if (radio) radio.checked = true;
+            
+            // Обработчик сохранения (дополнение к существующему submit событию)
+            form.addEventListener('submit', () => {
+                const selectedMode = document.querySelector('input[name="network-mode"]:checked').value;
+                localStorage.setItem('wt2:network-mode', selectedMode);
+                console.log('Network mode saved:', selectedMode);
+            });
+        });
+    </script>
 </body>
 </html>
