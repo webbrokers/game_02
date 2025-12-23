@@ -160,7 +160,12 @@
         // Setup copy button
         copyBtn.onclick = (e) => {
           e.preventDefault();
-          navigator.clipboard.writeText(window.location.href).then(() => {
+          
+          // Генерируем ссылку БЕЗ параметра host
+          const url = new URL(window.location.href);
+          url.searchParams.delete('host');
+          
+          navigator.clipboard.writeText(url.toString()).then(() => {
             const originalText = copyBtn.textContent;
             copyBtn.textContent = "СКОПИРОВАНО!";
             copyBtn.style.color = "#8dffd6";
