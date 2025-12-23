@@ -144,7 +144,7 @@ export class Renderer {
     }
 
     updateAimCursor(cursor, x, y, spread = 0) {
-        cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        cursor.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
         cursor.style.setProperty('--spread', `${spread}px`);
     }
 

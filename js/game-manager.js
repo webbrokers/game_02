@@ -102,6 +102,10 @@ export class GameManager {
 
         // Создаем прицел
         this.aimCursor = this.renderer.createAimCursor();
+        this.aimCursor.classList.add("aim-cursor--visible");
+
+        // Отключаем контекстное меню на поле боя
+        this.playfield.addEventListener('contextmenu', e => e.preventDefault());
 
         // Закрытие комнаты при выходе (для хоста)
         window.addEventListener('beforeunload', () => {
@@ -303,6 +307,8 @@ export class GameManager {
         const worldMouseY = this.input.pointerState.viewportY + this.camera.y;
         
         // Обновление разлета прицела
+        this.aimTurretTowards(this.playerTank, worldMouseX, worldMouseY, delta);
+
         if (this.isTurretMoving) {
             this.aimSpread = Math.min(20, this.aimSpread + 1); // Быстрое расширение
         } else {

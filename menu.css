@@ -1577,11 +1577,13 @@ body.play-screen .playfield {
 .player-hud {
   position: absolute;
   top: 20px;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1024px;
   display: flex;
   justify-content: space-between;
-  padding: 0 40px;
+  padding: 0;
   pointer-events: none;
   z-index: 100;
 }
