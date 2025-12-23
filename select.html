@@ -11,6 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="menu.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js" defer></script>
   </head>
   <body class="menu-screen">
@@ -20,6 +21,23 @@
       </header>
       <main class="menu-panel select-panel" role="main">
         <h1 class="panel-title" id="mode-title">Выбор миссии</h1>
+        
+        <!-- Room Info -->
+        <div id="room-info" style="display: none; text-align: center; margin-bottom: 2rem;">
+            <h2 class="section-title" style="margin-bottom: 1rem;">Комната: <span id="room-name-display" style="color: #4ade80;">...</span></h2>
+            <div id="countdown-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; flex-direction: column;">
+                <h1 style="font-size: 4rem; color: #fff; margin-bottom: 2rem;">ИГРА НАЧНЕТСЯ ЧЕРЕЗ</h1>
+                <div id="countdown-timer" style="font-size: 8rem; color: #4ade80; text-shadow: 0 0 20px #4ade80;">5</div>
+            </div>
+            
+            <div class="players-list" style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 4px; border: 1px solid #334155;">
+                <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">ИГРОКИ В ЛОББИ:</div>
+                <div id="players-container" style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                    <!-- Players will be added here -->
+                    <div style="color: #64748b;">Ожидание игроков...</div>
+                </div>
+            </div>
+        </div>
         <button
           id="copy-link"
           class="retro-button ghost"
@@ -110,22 +128,36 @@
     <script type="module">
       import { SUPABASE_URL, SUPABASE_KEY } from './js/supabase-config.js';
 
+      const { createClient } = supabase;
+      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
       const params = new URLSearchParams(window.location.search);
       const roomId = params.get("room");
       const isHost = params.get("host") === "1";
       const copyBtn = document.getElementById("copy-link");
+      const roomInfo = document.getElementById("room-info");
+      const roomNameDisplay = document.getElementById("room-name-display");
+      const playersContainer = document.getElementById("players-container");
+      const countdownOverlay = document.getElementById("countdown-overlay");
+      const countdownTimer = document.getElementById("countdown-timer");
       
       let isNavigatingAway = false;
+      let channel = null;
+      let currentPlayerName = localStorage.getItem('wt2:player-name') || 'Commander';
 
-      if (roomId) {
+      async function initLobby() {
+        if (!roomId) return;
+
         document.getElementById("room-id").value = roomId;
         document.getElementById("mode-title").textContent = "MULTIPLAYER: ВХОД";
-
-        // Показываем кнопку копирования
+        
+        // Show lobby UI
+        roomInfo.style.display = "block";
         copyBtn.style.display = "block";
+
+        // Setup copy button
         copyBtn.onclick = (e) => {
           e.preventDefault();
-          // Копируем текущий URL
           navigator.clipboard.writeText(window.location.href).then(() => {
             const originalText = copyBtn.textContent;
             copyBtn.textContent = "СКОПИРОВАНО!";
@@ -139,6 +171,105 @@
             alert("Не удалось скопировать ссылку");
           });
         };
+
+        // Fetch room name
+        const { data: room, error } = await supabaseClient
+            .from('rooms')
+            .select('name')
+            .eq('id', roomId)
+            .single();
+
+        if (room) {
+            roomNameDisplay.textContent = room.name;
+        }
+
+        // Connect to Realtime channel
+        channel = supabaseClient.channel(`room_${roomId}`, {
+            config: {
+                presence: {
+                    key: currentPlayerName,
+                },
+            },
+        });
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                updatePlayersList(state);
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({
+                        name: currentPlayerName,
+                        online_at: new Date().toISOString(),
+                    });
+                }
+            });
+      }
+
+      function updatePlayersList(state) {
+        const players = [];
+        for (const key in state) {
+            // state[key] is an array of presence objects for that key
+            // We just take the first one since key is nickname
+            if (state[key] && state[key].length > 0) {
+                players.push(state[key][0]);
+            }
+        }
+
+        playersContainer.innerHTML = '';
+        
+        if (players.length === 0) {
+            playersContainer.innerHTML = '<div style="color: #64748b;">Никого нет...</div>';
+            return;
+        }
+
+        // Sort players to keep order consistent
+        players.sort((a, b) => a.online_at.localeCompare(b.online_at));
+
+        players.forEach(p => {
+            const el = document.createElement('div');
+            el.style.cssText = 'display: flex; align-items: center; gap: 0.5rem;';
+            const isMe = p.name === currentPlayerName;
+            el.innerHTML = `
+                <span style="color: ${isMe ? '#fbbf24' : '#fff'}; font-weight: bold;">${p.name}</span>
+                <span style="color: #4ade80; font-size: 0.8rem;">● ONLINE</span>
+            `;
+            playersContainer.appendChild(el);
+        });
+
+        // Check for auto-start
+        if (players.length >= 2) {
+            startCountdown();
+        }
+      }
+
+      let countdownInterval = null;
+      function startCountdown() {
+          if (countdownInterval) return; // Already started
+          
+          countdownOverlay.style.display = 'flex';
+          let timeLeft = 5;
+          countdownTimer.textContent = timeLeft;
+
+          // Disable form interactions
+          const form = document.getElementById('play-form');
+          const elements = form.elements;
+          for (let i = 0; i < elements.length; i++) {
+            elements[i].disabled = true;
+          }
+
+          countdownInterval = setInterval(() => {
+              timeLeft--;
+              countdownTimer.textContent = timeLeft;
+              
+              if (timeLeft <= 0) {
+                  clearInterval(countdownInterval);
+                  // Auto submit form
+                  isNavigatingAway = true;
+                  form.submit(); // Using get method, will navigate to play.html
+              }
+          }, 1000);
       }
 
       // Функция закрытия комнаты (beacon)
@@ -165,9 +296,11 @@
         // Если нажата кнопка "В бой!", то мы продолжаем игру в этой комнате
         if (e.submitter && e.submitter.value === 'start') {
           isNavigatingAway = true;
+        } else if (countdownInterval) {
+           // If auto-submitting
+           isNavigatingAway = true;
         } else {
           // Если "Назад", то закрываем комнату (isNavigatingAway остается false, сработает beforeunload)
-          // Или закрываем явно здесь для надежности
           if (isHost && roomId) {
             closeRoomBeacon(roomId);
           }
@@ -179,7 +312,13 @@
         if (isHost && roomId && !isNavigatingAway) {
           closeRoomBeacon(roomId);
         }
+        if (channel) {
+            channel.unsubscribe();
+        }
       });
+
+      // Start
+      initLobby();
     </script>
   </body>
 </html>
