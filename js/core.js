@@ -10,8 +10,8 @@ export const TANK_PRESETS = Object.freeze({
         displayName: "Tiger MK II",
         variantClass: "tank--player tank--tiger-mk-ii",
         defaults: Object.freeze({
-            moveSpeed: 220,
-            fireCooldown: 1.5,
+            moveSpeed: 100,
+            fireCooldown: 3.0,
             damagePerHit: 0.2,
         }),
     }),
@@ -20,8 +20,8 @@ export const TANK_PRESETS = Object.freeze({
         displayName: "FANTOM X",
         variantClass: "tank--player tank--phantom-x",
         defaults: Object.freeze({
-            moveSpeed: 280,
-            fireCooldown: 1.2,
+            moveSpeed: 130,
+            fireCooldown: 2.4,
             damagePerHit: 0.16,
         }),
     }),
@@ -30,8 +30,8 @@ export const TANK_PRESETS = Object.freeze({
         displayName: "CRUSHER 88",
         variantClass: "tank--player tank--crusher-88",
         defaults: Object.freeze({
-            moveSpeed: 170,
-            fireCooldown: 1.9,
+            moveSpeed: 80,
+            fireCooldown: 3.8,
             damagePerHit: 0.26,
         }),
     }),
@@ -52,7 +52,7 @@ export const WORLD_HEIGHT = Math.round(BASE_VIEWPORT_HEIGHT * MAP_SCALE);
 export const DEG_TO_RAD = Math.PI / 180;
 export const RAD_TO_DEG = 180 / Math.PI;
 
-export const TURN_SPEED = 140;
+export const TURN_SPEED = 45;
 export const BULLET_SPEED = 580;
 export const BULLET_LIFETIME = 2.2;
 

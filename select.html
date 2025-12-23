@@ -1,81 +1,139 @@
 ﻿<!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>War Tanks — Выбор</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="menu.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="menu.css" />
     <script src="app.js" defer></script>
-</head>
-<body class="menu-screen">
+  </head>
+  <body class="menu-screen">
     <div class="menu-overlay">
-        <header class="menu-header">
-            <span class="menu-brand">WAR TANKS II</span>
-        </header>
-        <main class="menu-panel select-panel" role="main">
-            <h1 class="panel-title" id="mode-title">Выбор миссии</h1>
-            <form class="selection-form" id="play-form" action="play.html" method="get">
-                <input type="hidden" name="room" id="room-id">
-                <section class="selection-group" aria-labelledby="tank-heading">
-                    <h2 class="section-title" id="tank-heading">Выбор танка</h2>
-                    <div class="card-grid">
-                        <label class="select-card">
-                            <input type="radio" name="tank" value="tiger" checked>
-                            <span class="card-title">Tiger MK-II</span>
-                            <span class="card-meta">Броня 5 ▪️ Скорость 3</span>
-                            <span class="card-meta">Урон 4 ▪️ Дальность 2</span>
-                        </label>
-                        <label class="select-card">
-                            <input type="radio" name="tank" value="phantom">
-                            <span class="card-title">Phantom X</span>
-                            <span class="card-meta">Броня 3 ▪️ Скорость 5</span>
-                            <span class="card-meta">Урон 3 ▪️ Дальность 4</span>
-                        </label>
-                        <label class="select-card">
-                            <input type="radio" name="tank" value="crusher">
-                            <span class="card-title">Crusher 88</span>
-                            <span class="card-meta">Броня 6 ▪️ Скорость 2</span>
-                            <span class="card-meta">Урон 5 ▪️ Дальность 3</span>
-                        </label>
-                    </div>
-                </section>
-                <section class="selection-group" aria-labelledby="map-heading">
-                    <h2 class="section-title" id="map-heading">Карта</h2>
-                    <div class="card-grid">
-                        <label class="select-card">
-                            <input type="radio" name="map" value="desert" checked>
-                            <span class="card-title">Desert Strike</span>
-                            <span class="card-meta">Открытая пустыня, минимальное укрытие</span>
-                        </label>
-                        <label class="select-card">
-                            <input type="radio" name="map" value="frozen">
-                            <span class="card-title">Frozen Front</span>
-                            <span class="card-meta">Ледяные переправы, среднее укрытие</span>
-                        </label>
-                        <label class="select-card">
-                            <input type="radio" name="map" value="urban">
-                            <span class="card-title">Urban Siege</span>
-                            <span class="card-meta">Городские руины, плотное укрытие</span>
-                        </label>
-                    </div>
-                </section>
-                <div class="button-row">
-                    <button class="retro-button ghost" type="submit" name="action" value="back" formaction="menu.html" formmethod="get" formnovalidate>Назад</button>
-                    <button class="retro-button" type="submit" name="action" value="start" formaction="play.html" formmethod="get">В бой!</button>
-                </div>
-            </form>
-        </main>
+      <header class="menu-header">
+        <span class="menu-brand">WAR TANKS II</span>
+      </header>
+      <main class="menu-panel select-panel" role="main">
+        <h1 class="panel-title" id="mode-title">Выбор миссии</h1>
+        <button
+          id="copy-link"
+          class="retro-button ghost"
+          style="margin-bottom: 2rem; display: none"
+        >
+          Скопировать ссылку
+        </button>
+        <form
+          class="selection-form"
+          id="play-form"
+          action="play.html"
+          method="get"
+        >
+          <input type="hidden" name="room" id="room-id" />
+          <section class="selection-group" aria-labelledby="tank-heading">
+            <h2 class="section-title" id="tank-heading">Выбор танка</h2>
+            <div class="card-grid">
+              <label class="select-card">
+                <input type="radio" name="tank" value="tiger" checked />
+                <span class="card-title">Tiger MK-II</span>
+                <span class="card-meta">Броня 5 ▪️ Скорость 3</span>
+                <span class="card-meta">Урон 4 ▪️ Дальность 2</span>
+              </label>
+              <label class="select-card">
+                <input type="radio" name="tank" value="phantom" />
+                <span class="card-title">Phantom X</span>
+                <span class="card-meta">Броня 3 ▪️ Скорость 5</span>
+                <span class="card-meta">Урон 3 ▪️ Дальность 4</span>
+              </label>
+              <label class="select-card">
+                <input type="radio" name="tank" value="crusher" />
+                <span class="card-title">Crusher 88</span>
+                <span class="card-meta">Броня 6 ▪️ Скорость 2</span>
+                <span class="card-meta">Урон 5 ▪️ Дальность 3</span>
+              </label>
+            </div>
+          </section>
+          <section class="selection-group" aria-labelledby="map-heading">
+            <h2 class="section-title" id="map-heading">Карта</h2>
+            <div class="card-grid">
+              <label class="select-card">
+                <input type="radio" name="map" value="desert" checked />
+                <span class="card-title">Desert Strike</span>
+                <span class="card-meta"
+                  >Открытая пустыня, минимальное укрытие</span
+                >
+              </label>
+              <label class="select-card">
+                <input type="radio" name="map" value="frozen" />
+                <span class="card-title">Frozen Front</span>
+                <span class="card-meta"
+                  >Ледяные переправы, среднее укрытие</span
+                >
+              </label>
+              <label class="select-card">
+                <input type="radio" name="map" value="urban" />
+                <span class="card-title">Urban Siege</span>
+                <span class="card-meta">Городские руины, плотное укрытие</span>
+              </label>
+            </div>
+          </section>
+          <div class="button-row">
+            <button
+              class="retro-button ghost"
+              type="submit"
+              name="action"
+              value="back"
+              formaction="menu.html"
+              formmethod="get"
+              formnovalidate
+            >
+              Назад
+            </button>
+            <button
+              class="retro-button"
+              type="submit"
+              name="action"
+              value="start"
+              formaction="play.html"
+              formmethod="get"
+            >
+              В бой!
+            </button>
+          </div>
+        </form>
+      </main>
     </div>
     <script>
-        const params = new URLSearchParams(window.location.search);
-        const roomId = params.get('room');
-        if (roomId) {
-            document.getElementById('room-id').value = roomId;
-            document.getElementById('mode-title').textContent = 'MULTIPLAYER: ВХОД';
-        }
+      const params = new URLSearchParams(window.location.search);
+      const roomId = params.get("room");
+      const copyBtn = document.getElementById("copy-link");
+      if (roomId) {
+        document.getElementById("room-id").value = roomId;
+        document.getElementById("mode-title").textContent = "MULTIPLAYER: ВХОД";
+
+        // Показываем кнопку копирования
+        copyBtn.style.display = "block";
+        copyBtn.onclick = (e) => {
+          e.preventDefault();
+          // Копируем текущий URL
+          navigator.clipboard.writeText(window.location.href).then(() => {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = "СКОПИРОВАНО!";
+            copyBtn.style.color = "#8dffd6";
+            setTimeout(() => {
+              copyBtn.textContent = originalText;
+              copyBtn.style.color = "";
+            }, 2000);
+          }).catch(err => {
+            console.error("Ошибка копирования:", err);
+            alert("Не удалось скопировать ссылку");
+          });
+        };
+      }
     </script>
-</body>
+  </body>
 </html>

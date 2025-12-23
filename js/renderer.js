@@ -8,6 +8,10 @@ export class Renderer {
         this.world = worldElement;
         this.tanks = new Map(); // CoreID -> ElementGroup
         this.bullets = new Map(); // CoreBullet -> Element
+        this.hud = {
+            left: null,
+            right: null
+        };
     }
 
     createTankElements(variantClass) {
@@ -124,11 +128,89 @@ export class Renderer {
     createAimCursor() {
         const cursor = document.createElement("div");
         cursor.className = "aim-cursor";
+        
+        const dot = document.createElement("div");
+        dot.className = "aim-cursor__dot";
+        cursor.appendChild(dot);
+
+        ["top", "bottom", "left", "right"].forEach(pos => {
+            const line = document.createElement("div");
+            line.className = `aim-cursor__cross aim-cursor__cross--${pos}`;
+            cursor.appendChild(line);
+        });
+
         this.world.appendChild(cursor);
         return cursor;
     }
 
-    updateAimCursor(cursor, x, y) {
-        cursor.style.transform = `translate3d(${x - 24}px, ${y - 24}px, 0)`;
+    updateAimCursor(cursor, x, y, spread = 0) {
+        cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        cursor.style.setProperty('--spread', `${spread}px`);
+    }
+
+    initHUD(p1Name, p2Name) {
+        const hudContainer = document.createElement("div");
+        hudContainer.className = "player-hud";
+        
+        const createPlayerInfo = (name, side) => {
+            const player = document.createElement("div");
+            player.className = `hud-player hud-player--${side}`;
+            
+            const header = document.createElement("div");
+            header.className = "hud-header";
+            
+            const avatar = document.createElement("div");
+            avatar.className = "hud-avatar";
+            avatar.textContent = side === "left" ? "P1" : "P2";
+            
+            const nameEl = document.createElement("div");
+            nameEl.className = "hud-name";
+            nameEl.textContent = name;
+            
+            header.appendChild(avatar);
+            header.appendChild(nameEl);
+            
+            const bar = document.createElement("div");
+            bar.className = "hud-bar";
+            
+            const fill = document.createElement("div");
+            fill.className = "hud-fill";
+            
+            const label = document.createElement("div");
+            label.className = "hud-label";
+            label.textContent = "100%";
+            
+            bar.appendChild(fill);
+            bar.appendChild(label);
+            
+            player.appendChild(header);
+            player.appendChild(bar);
+            
+            return { root: player, fill, label };
+        };
+
+        this.hud.left = createPlayerInfo(p1Name, "left");
+        this.hud.right = createPlayerInfo(p2Name || "Ожидание...", "right");
+        
+        hudContainer.appendChild(this.hud.left.root);
+        hudContainer.appendChild(this.hud.right.root);
+        
+        document.body.appendChild(hudContainer);
+    }
+
+    updateHUD(hp1, hp2, p2Name) {
+        if (this.hud.left) {
+            const p1Val = Math.max(0, Math.ceil(hp1 * 100));
+            this.hud.left.fill.style.width = `${p1Val}%`;
+            this.hud.left.label.textContent = `${p1Val}%`;
+        }
+        if (this.hud.right) {
+            if (p2Name && this.hud.right.root.querySelector('.hud-name').textContent === "Ожидание...") {
+                this.hud.right.root.querySelector('.hud-name').textContent = p2Name;
+            }
+            const p2Val = Math.max(0, Math.ceil(hp2 * 100));
+            this.hud.right.fill.style.width = `${p2Val}%`;
+            this.hud.right.label.textContent = `${p2Val}%`;
+        }
     }
 }
