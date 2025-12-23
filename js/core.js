@@ -70,7 +70,8 @@ export const CHASSIS_HEIGHT = 70;
  */
 export class TankCore {
     constructor(data) {
-        this.id = data.id || Math.random().toString(36).substr(2, 9);
+        // ID теперь ОБЯЗАТЕЛЕН - генерируется в GameManager на основе роли игрока
+        this.id = data.id;
         this.x = data.x || 0;
         this.y = data.y || 0;
         this.hullAngle = data.hullAngle || 0;

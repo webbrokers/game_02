@@ -50,8 +50,20 @@ export class GameManager {
         // Очистка плейфилда от возможного мусора из app.js
         this.playfield.innerHTML = '';
 
-        // Инициализация игрока
+        // Детерминированные ID на основе роли игрока и режима игры
+        // В мультиплеере: хост всегда player1, гость всегда player2
+        // В синглплеере: игрок всегда player1
+        if (roomId) {
+            this.myPlayerId = this.isHost ? 'player1' : 'player2';
+            this.enemyPlayerId = this.isHost ? 'player2' : 'player1';
+        } else {
+            this.myPlayerId = 'player1';
+            this.enemyPlayerId = 'ai_enemy';
+        }
+
+        // Инициализация игрока с детерминированным ID
         this.playerTank = new TankCore({
+            id: this.myPlayerId,
             x: WORLD_WIDTH / 2,
             y: WORLD_HEIGHT / 2,
             isPlayer: true,
@@ -66,9 +78,8 @@ export class GameManager {
         this.playfield.appendChild(this.worldElement);
         this.renderer.world = this.worldElement;
 
-        // Регистрация игрока с учетом роли
-        const playerRole = this.isHost ? 'p1' : 'p2';
-        this.renderer.registerTank(this.playerTank, TANK_PRESETS[tankId].variantClass, playerRole);
+        // Регистрация своего танка (всегда зеленый)
+        this.renderer.registerTank(this.playerTank, TANK_PRESETS[tankId].variantClass, true);
 
         // Слушаем мышь для прицеливания
         this.playfield.addEventListener("pointermove", (e) => {
@@ -103,12 +114,13 @@ export class GameManager {
             // Режим синглплеера - добавляем ИИ
             const pName = localStorage.getItem('wt2:player-name') || 'Commander';
             this.enemyTank = new TankCore({
+                id: 'ai_enemy',  // Детерминированный ID для AI
                 x: WORLD_WIDTH * 0.75,
                 y: WORLD_HEIGHT * 0.35,
                 isPlayer: false,
                 presetId: 'tiger'
             });
-            this.renderer.registerTank(this.enemyTank, "tank--enemy");
+            this.renderer.registerTank(this.enemyTank, "tank--enemy", false);
             
             // В сингле мы всегда P1
             this.renderer.initHUD(pName, "AI: Tiger MK-II");
@@ -136,22 +148,21 @@ export class GameManager {
     }
 
     handleRemotePlayerUpdate(data) {
-        // Защита: не обрабатываем сообщения от самих себя
-        if (this.playerTank && data.id === this.playerTank.id) return;
+        // Детерминированная проверка: обрабатываем только сообщения от противника
+        // Игнорируем сообщения с неправильным ID или от самих себя
+        if (!data.id || data.id !== this.enemyPlayerId) return;
 
         if (!this.enemyTank) {
             this.enemyName = data.name || 'Enemy';
             this.enemyTank = new TankCore({
-                id: data.id,
+                id: this.enemyPlayerId,  // Используем детерминированный ID противника
                 x: data.x,
                 y: data.y,
                 presetId: data.presetId,
                 isPlayer: false
             });
-            // Если мы хост (P1), значит удаленный игрок - гость (P2)
-            // Если мы гость (P2), значит удаленный игрок - хост (P1)
-            const remoteRole = this.isHost ? 'p2' : 'p1';
-            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, remoteRole);
+            // Регистрируем вражеский танк (всегда коричневый)
+            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, false);
             
             // Инициализация целевых значений для интерполяции
             this.enemyTank.targetX = data.x;
@@ -258,7 +269,7 @@ export class GameManager {
                 
                 // Используем delta compression для снижения трафика
                 this.network.sendPositionDelta({
-                    id: this.playerTank.id,
+                    id: this.myPlayerId,  // Отправляем детерминированный ID
                     name: this.playerName,
                     x: this.playerTank.x,
                     y: this.playerTank.y,

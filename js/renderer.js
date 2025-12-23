@@ -70,9 +70,10 @@ export class Renderer {
         };
     }
 
-    registerTank(tankCore, variantClass, role = 'p1') {
-        // P1 всегда использует базовый класс (зеленый), P2 всегда использует вражеский класс (коричневый)
-        const finalClass = role === 'p1' ? 'tank--player' : 'tank--enemy';
+    registerTank(tankCore, variantClass, isPlayerTank = true) {
+        // Свой танк всегда зеленый (tank--player), вражеский всегда коричневый (tank--enemy)
+        // Это гарантирует что каждый игрок видит себя зеленым, независимо от роли (хост/гость)
+        const finalClass = isPlayerTank ? 'tank--player' : 'tank--enemy';
         // Также добавляем специфичный класс пресета (tiger/phantom/crusher)
         const presetClass = variantClass.includes('tiger') ? 'tank--tiger-mk-ii' : 
                            (variantClass.includes('phantom') ? 'tank--phantom-x' : 'tank--crusher-88');
