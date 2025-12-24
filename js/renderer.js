@@ -214,7 +214,7 @@ export class Renderer {
 
     updateHUD(hp1, hp2, name1, name2, rld1, rld2, p2Visible = true) {
         if (this.hud.left) {
-            if (name1 && this.hud.left.root.querySelector('.hud-name').textContent === "Загрузка...") {
+            if (name1) {
                 this.hud.left.root.querySelector('.hud-name').textContent = name1;
             }
             const p1Val = Math.max(0, Math.ceil(hp1 * 100));
@@ -225,8 +225,7 @@ export class Renderer {
             }
         }
         if (this.hud.right) {
-            if (name2 && (this.hud.right.root.querySelector('.hud-name').textContent === "Ожидание..." || 
-                         this.hud.right.root.querySelector('.hud-name').textContent === "Загрузка...")) {
+            if (name2) {
                 this.hud.right.root.querySelector('.hud-name').textContent = name2;
             }
             
