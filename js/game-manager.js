@@ -1,4 +1,4 @@
-import { TankCore, BulletCore, WORLD_WIDTH, WORLD_HEIGHT, TANK_PRESETS } from './core.js';
+import { TankCore, BulletCore, WORLD_WIDTH, WORLD_HEIGHT, TANK_PRESETS, SPAWN_ZONES } from './core.js';
 import { Renderer } from './renderer.js';
 import { InputHandler } from './input.js';
 import { ConnectionManager } from './connection-manager.js';
