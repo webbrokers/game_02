@@ -49,6 +49,17 @@ export const BASE_VIEWPORT_HEIGHT = 800;
 export const WORLD_WIDTH = Math.round(BASE_VIEWPORT_WIDTH * MAP_SCALE);
 export const WORLD_HEIGHT = Math.round(BASE_VIEWPORT_HEIGHT * MAP_SCALE);
 
+export const SPAWN_ZONES = Object.freeze({
+    player1: { // Left side (Host)
+        minX: 100, maxX: 600,
+        minY: 100, maxY: WORLD_HEIGHT - 100
+    },
+    player2: { // Right side (Guest)
+        minX: WORLD_WIDTH - 600, maxX: WORLD_WIDTH - 100,
+        minY: 100, maxY: WORLD_HEIGHT - 100
+    }
+});
+
 export const DEG_TO_RAD = Math.PI / 180;
 export const RAD_TO_DEG = 180 / Math.PI;
 

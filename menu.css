@@ -418,10 +418,18 @@ body.menu-screen {
   height: 2px;
 }
 
-.aim-cursor__cross--top { transform: translateY(calc(-100% - var(--spread))); }
-.aim-cursor__cross--bottom { transform: translateY(calc(100% + var(--spread))); }
-.aim-cursor__cross--left { transform: translateX(calc(-100% - var(--spread))); }
-.aim-cursor__cross--right { transform: translateX(calc(100% + var(--spread))); }
+.aim-cursor__cross--top {
+  transform: translateY(calc(-100% - var(--spread)));
+}
+.aim-cursor__cross--bottom {
+  transform: translateY(calc(100% + var(--spread)));
+}
+.aim-cursor__cross--left {
+  transform: translateX(calc(-100% - var(--spread)));
+}
+.aim-cursor__cross--right {
+  transform: translateX(calc(100% + var(--spread)));
+}
 
 .aim-cursor__dot {
   width: 4px;
@@ -630,36 +638,55 @@ body.menu-screen {
   }
 }
 
-@keyframes play-explosion-core-small {
+/* Новая быстрая и большая анимация попадания */
+.tank-hit-explosion {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  transform-origin: center;
+  z-index: 50; /* Поверх танков */
+  animation: hit-explosion-anim 0.3s ease-out forwards;
+}
+
+.tank-hit-explosion::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #fff 0%,
+    #ffaa00 40%,
+    rgba(255, 0, 0, 0) 70%
+  );
+  animation: hit-explosion-core 0.3s ease-out forwards;
+}
+
+@keyframes hit-explosion-anim {
   0% {
-    transform: translate(-50%, -50%) scale(0.65);
-    opacity: 0.9;
+    transform: scale(0.5);
+    opacity: 1;
   }
-
-  60% {
-    transform: translate(-50%, -50%) scale(1.8);
-    opacity: 0.7;
-  }
-
   100% {
-    transform: translate(-50%, -50%) scale(2.4);
+    transform: scale(2);
     opacity: 0;
   }
 }
 
-@keyframes play-explosion-wave-small {
+@keyframes hit-explosion-core {
   0% {
-    transform: translate(-50%, -50%) scale(0.3);
-    opacity: 0.6;
+    width: 40px;
+    height: 40px;
+    opacity: 1;
   }
-
-  55% {
-    transform: translate(-50%, -50%) scale(1.1);
-    opacity: 0.4;
-  }
-
   100% {
-    transform: translate(-50%, -50%) scale(1.35);
+    width: 120px;
+    height: 120px;
     opacity: 0;
   }
 }
@@ -1717,7 +1744,7 @@ body.play-screen .playfield {
   border: 2px solid #333;
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
 }
 
 .hud-fill {
@@ -1755,8 +1782,14 @@ body.play-screen .playfield {
 }
 
 @keyframes panelFadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .records-list {

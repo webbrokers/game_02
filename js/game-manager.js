@@ -61,14 +61,23 @@ export class GameManager {
             this.enemyPlayerId = 'ai_enemy';
         }
 
+        // Выбор случайной точки спауна в своей зоне
+        const spawnZone = SPAWN_ZONES[this.myPlayerId] || SPAWN_ZONES.player1;
+        const spawnX = Math.random() * (spawnZone.maxX - spawnZone.minX) + spawnZone.minX;
+        const spawnY = Math.random() * (spawnZone.maxY - spawnZone.minY) + spawnZone.minY;
+
         // Инициализация игрока с детерминированным ID
         this.playerTank = new TankCore({
             id: this.myPlayerId,
-            x: WORLD_WIDTH / 2,
-            y: WORLD_HEIGHT / 2,
+            x: spawnX,
+            y: spawnY,
             isPlayer: true,
             presetId: tankId
         });
+        
+        // Случайный начальный поворот (вариативность)
+        this.playerTank.hullAngle = Math.random() * 360;
+        this.playerTank.turretAngle = this.playerTank.hullAngle;
 
         // Создаем мир в Renderer (имитация логики из app.js)
         this.worldElement = document.createElement("div");
@@ -100,10 +109,24 @@ export class GameManager {
             // Настройка сетевых коллбэков
             this.network.onPlayerUpdate = (data) => this.handleRemotePlayerUpdate(data);
             this.network.onPlayerFire = (data) => this.handleRemoteFire(data);
-            this.network.onConnectionReady = (mode) => {
+            this.network.onConnectionReady = async (mode) => {
                 console.log(`✅ Подключено через ${mode === 'webrtc' ? 'WebRTC P2P' : 'Supabase Broadcast'}`);
                 // Показываем индикатор режима в HUD
                 this.currentNetworkMode = mode;
+                
+                // СРАЗУ отправляем свое начальное положение, чтобы второй игрок нас увидел
+                // Даже если мы не двигаемся
+                this.network.sendPosition({
+                    id: this.myPlayerId,
+                    name: this.playerName,
+                    x: this.playerTank.x,
+                    y: this.playerTank.y,
+                    hullAngle: this.playerTank.hullAngle,
+                    turretAngle: this.playerTank.turretAngle,
+                    health: this.playerTank.health,
+                    isDestroyed: this.playerTank.isDestroyed,
+                    presetId: this.playerTank.presetId
+                });
             };
             
             await this.network.connect();
@@ -118,13 +141,22 @@ export class GameManager {
         } else {
             // Режим синглплеера - добавляем ИИ
             const pName = localStorage.getItem('wt2:player-name') || 'Commander';
+            
+            // Спаун врага случайно в зоне P2
+            const spawnZone = SPAWN_ZONES.player2;
+            const spawnX = Math.random() * (spawnZone.maxX - spawnZone.minX) + spawnZone.minX;
+            const spawnY = Math.random() * (spawnZone.maxY - spawnZone.minY) + spawnZone.minY;
+
             this.enemyTank = new TankCore({
                 id: 'ai_enemy',  // Детерминированный ID для AI
-                x: WORLD_WIDTH * 0.75,
-                y: WORLD_HEIGHT * 0.35,
+                x: spawnX,
+                y: spawnY,
                 isPlayer: false,
                 presetId: 'tiger'
             });
+            this.enemyTank.hullAngle = Math.random() * 360;
+            this.enemyTank.turretAngle = this.enemyTank.hullAngle;
+            
             this.renderer.registerTank(this.enemyTank, "tank--enemy", false);
             
             // В сингле мы всегда P1
@@ -548,6 +580,7 @@ export class GameManager {
             if (dist < 30) {
                 this.playerTank.applyDamage(0.1); 
                 bullet.isDestroyed = true;
+                this.renderer.createExplosion(bullet.x, bullet.y);
                 return true;
             }
         }
@@ -560,6 +593,7 @@ export class GameManager {
                     this.enemyTank.applyDamage(0.1);
                 }
                 bullet.isDestroyed = true;
+                this.renderer.createExplosion(bullet.x, bullet.y);
                 return true;
             }
         }

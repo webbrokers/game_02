@@ -246,4 +246,16 @@ export class Renderer {
             }
         }
     }
+    createExplosion(x, y) {
+        const explosion = document.createElement("div");
+        explosion.className = "tank-hit-explosion";
+        explosion.style.left = `${x}px`;
+        explosion.style.top = `${y}px`;
+        this.world.appendChild(explosion);
+        
+        // Удаляем элемент после завершения анимации
+        setTimeout(() => {
+            explosion.remove();
+        }, 300); // 0.3s duration
+    }
 }
