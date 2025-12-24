@@ -159,24 +159,36 @@ export class GameManager {
 
         if (!this.enemyTank) {
             this.enemyName = data.name || 'Enemy';
+            console.log(`Enemy connected: ${this.enemyName} (${data.id})`);
+            
             this.enemyTank = new TankCore({
                 id: this.enemyPlayerId,  // Используем детерминированный ID противника
                 x: data.x,
                 y: data.y,
-                presetId: data.presetId,
+                presetId: data.presetId || 'tiger',
                 isPlayer: false
             });
+            
+            // Инициализация углов сразу, чтобы танк не смотрел в дефолтную сторону
+            this.enemyTank.hullAngle = data.hullAngle || 0;
+            this.enemyTank.turretAngle = data.turretAngle || 0;
+
             // Регистрируем вражеский танк
             // Если мы хост (P1 зеленый), то противник P2 коричневый
             // Если мы гость (P2 коричневый), то противник P1 зеленый
             const isEnemyGreen = !this.isHost; // Противник зеленый если мы не хост
-            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId].variantClass, isEnemyGreen);
+            this.renderer.registerTank(this.enemyTank, TANK_PRESETS[data.presetId || 'tiger'].variantClass, isEnemyGreen);
             
             // Инициализация целевых значений для интерполяции
             this.enemyTank.targetX = data.x;
             this.enemyTank.targetY = data.y;
             this.enemyTank.targetHullAngle = data.hullAngle || 0;
             this.enemyTank.targetTurretAngle = data.turretAngle || 0;
+        }
+        
+        // Обновляем имя если оно пришло и отличается
+        if (data.name && data.name !== 'Commander' && (!this.enemyName || this.enemyName === 'Enemy' || this.enemyName === 'Ожидание...')) {
+            this.enemyName = data.name;
         }
         
         // Обновляем целевые значения для интерполяции (вместо мгновенного применения)
