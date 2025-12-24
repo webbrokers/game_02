@@ -38,6 +38,13 @@ export class GameManager {
         this.networkUpdateTimer = 0;
         this.networkUpdateInterval = 0.1; // 100мс
 
+        // Эффекты
+        this.shakeTimer = 0;
+        this.firstBloodHappened = false;
+        
+        // Аудио
+        this.shotSound = new Audio('audio/tank-shot.wav');
+
         this.init();
     }
 
@@ -453,10 +460,23 @@ export class GameManager {
         const targetY = this.playerTank.y - this.viewportHeight / 2;
         
         // Ограничение камеры границами мира
+        // Ограничение камеры границами мира
         const mapWidth = 1920;  // WORLD_WIDTH из core.js
         const mapHeight = 1500; // WORLD_HEIGHT из core.js
-        this.camera.x = Math.max(0, Math.min(mapWidth - this.viewportWidth, targetX));
-        this.camera.y = Math.max(0, Math.min(mapHeight - this.viewportHeight, targetY));
+        
+        let finalX = Math.max(0, Math.min(mapWidth - this.viewportWidth, targetX));
+        let finalY = Math.max(0, Math.min(mapHeight - this.viewportHeight, targetY));
+
+        // Тряска камеры
+        if (this.shakeTimer > 0) {
+            this.shakeTimer -= delta;
+            const shakeIntensity = 10;
+            finalX += (Math.random() - 0.5) * shakeIntensity;
+            finalY += (Math.random() - 0.5) * shakeIntensity;
+        }
+
+        this.camera.x = finalX;
+        this.camera.y = finalY;
     }
 
     updatePlayerLogic(delta) {
@@ -472,9 +492,13 @@ export class GameManager {
         // Движение вперед/назад
         if (this.input.keyState.forward || this.input.keyState.backward) {
             const moveDir = this.input.keyState.forward ? 1 : -1;
+            
+            // Задний ход на 30% медленнее
+            const speedMultiplier = moveDir === -1 ? 0.7 : 1.0;
+            
             const angleRad = this.playerTank.hullAngle * (Math.PI / 180);
-            this.playerTank.x += Math.sin(angleRad) * moveDir * moveSpeed * delta;
-            this.playerTank.y -= Math.cos(angleRad) * moveDir * moveSpeed * delta;
+            this.playerTank.x += Math.sin(angleRad) * moveDir * moveSpeed * speedMultiplier * delta;
+            this.playerTank.y -= Math.cos(angleRad) * moveDir * moveSpeed * speedMultiplier * delta;
         }
 
         // Прицеливание башней за курсором с учетом камеры и инерции
@@ -521,7 +545,7 @@ export class GameManager {
         const targetAngle = (Math.atan2(dx, -dy) * (180 / Math.PI) + 360) % 360;
         
         const angleDiff = ((targetAngle - tank.turretAngle + 540) % 360) - 180;
-        const turretTurnRate = 45; // 45 градусов в секунду (увеличено на 50%)
+        const turretTurnRate = 54; // 45 + 20% = 54 градусов в секунду
         const maxTurn = turretTurnRate * delta;
         
         const appliedTurn = Math.abs(angleDiff) > maxTurn 
@@ -550,6 +574,13 @@ export class GameManager {
         const element = this.renderer.createBulletElement(tank.isPlayer);
         this.bullets.push({ core: bullet, element });
         tank.reloadTimer = tank.settings.fireCooldown;
+        
+        // Звук выстрела (клонируем, чтобы можно было накладывать звуки)
+        if (this.shotSound) {
+            const sound = this.shotSound.cloneNode();
+            sound.volume = 0.4;
+            sound.play().catch(() => {});
+        }
     }
 
     updateBullets(delta) {
@@ -581,6 +612,22 @@ export class GameManager {
                 this.playerTank.applyDamage(0.1); 
                 bullet.isDestroyed = true;
                 this.renderer.createExplosion(bullet.x, bullet.y);
+                
+                // Тряска при попадании
+                this.shakeTimer = 0.5;
+                
+                // First Blood check
+                if (!this.firstBloodHappened) {
+                    this.firstBloodHappened = true;
+                    // Если попали в нас - это тоже First Blood, но покажем его
+                    // (Логичнее показывать атакующему, но ТЗ "показывать на экране игрока КОТОРЫЙ ПОПАЛ")
+                    // В данном блоке мы(playerTank) ПОЛУЧАЕМ урон. Значит попал враг.
+                    // ТЗ: "при первом попадание ИГРОКОМ в противника". 
+                    // Значит тут нам показывать не надо, если только мы не хотим видеть что враг сделал First Blood.
+                    // ТЗ: "показывать на экране игрока который попал". 
+                    // Значит этот блок (где в нас попали) не триггерит надпись НАМ.
+                }
+                
                 return true;
             }
         }
@@ -594,6 +641,13 @@ export class GameManager {
                 }
                 bullet.isDestroyed = true;
                 this.renderer.createExplosion(bullet.x, bullet.y);
+
+                // First Blood check (Мы попали во врага)
+                if (!this.firstBloodHappened) {
+                    this.firstBloodHappened = true;
+                    this.renderer.showFirstBlood();
+                }
+
                 return true;
             }
         }

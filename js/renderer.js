@@ -258,4 +258,39 @@ export class Renderer {
             explosion.remove();
         }, 300); // 0.3s duration
     }
+    showFirstBlood() {
+        const overlay = document.createElement("div");
+        overlay.innerText = "FIRST BLOOD";
+        overlay.style.position = "absolute";
+        overlay.style.top = "30%";
+        overlay.style.left = "50%";
+        overlay.style.transform = "translate(-50%, -50%) scale(0.5)";
+        overlay.style.color = "#bb0a1e"; // Blood red
+        overlay.style.fontFamily = "'Impact', sans-serif"; // Mortal Kombatish
+        overlay.style.fontSize = "80px";
+        overlay.style.fontWeight = "bold";
+        overlay.style.textShadow = "0 0 10px #000, 0 0 20px #bb0a1e";
+        overlay.style.pointerEvents = "none";
+        overlay.style.opacity = "0";
+        overlay.style.transition = "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+        overlay.style.zIndex = "1000";
+
+        document.body.appendChild(overlay);
+
+        // Animation sequence
+        requestAnimationFrame(() => {
+            overlay.style.opacity = "1";
+            overlay.style.transform = "translate(-50%, -50%) scale(1.2)";
+            
+            setTimeout(() => {
+                overlay.style.transition = "all 2s ease-out";
+                overlay.style.opacity = "0";
+                overlay.style.transform = "translate(-50%, -50%) scale(1.5) translateY(-50px)";
+                
+                setTimeout(() => {
+                    overlay.remove();
+                }, 2000);
+            }, 1000);
+        });
+    }
 }

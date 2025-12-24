@@ -64,7 +64,7 @@ export const DEG_TO_RAD = Math.PI / 180;
 export const RAD_TO_DEG = 180 / Math.PI;
 
 export const TURN_SPEED = 45;
-export const BULLET_SPEED = 580;
+export const BULLET_SPEED = 406;
 export const BULLET_LIFETIME = 2.2;
 
 export const MissionOutcome = Object.freeze({

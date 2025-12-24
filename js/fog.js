@@ -28,9 +28,18 @@ export class FogRenderer {
     update(playerTank, enemyTank, isEnemyVisible, delta) {
         if (!this.ctx) return;
 
-        // Постепенное затухание (критично для эффекта памяти)
-        // В оригинале было мгновенно, но мы можем улучшить
-        this.alphaField.fill(0);
+        // Постепенное затухание (туман возвращается)
+        // Если мы просто обнуляем, то туман схлопывается мгновенно
+        // this.alphaField.fill(0); <-- УБРАЛИ
+
+        // Уменьшаем прозрачность "дырок" со временем
+        const decaySpeed = 0.4; // За ~2.5 секунды (1.0 / 0.4) вернется полная тьма
+        const len = this.alphaField.length;
+        for (let i = 0; i < len; i++) {
+            if (this.alphaField[i] > 0) {
+                this.alphaField[i] = Math.max(0, this.alphaField[i] - decaySpeed * delta);
+            }
+        }
 
         const applyReveal = (tx, ty) => {
             const startCol = Math.max(0, Math.floor((tx - this.outerRadius) / FOG_CELL_SIZE));
