@@ -66,6 +66,9 @@ export class NetworkHandler {
         
         // Первая отправка - отправляем все поля
         if (!this.lastSentState) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'network.js:68',message:'First position send (full state)',data:{dataKeys:Object.keys(data),data},timestamp:Date.now(),sessionId:'debug-session',runId:'bug2-invisible',hypothesisId:'H2-invisible'})}).catch(()=>{});
+            // #endregion
             this.lastSentState = { ...data };
             this.sendPosition(data);
             return;
@@ -93,12 +96,24 @@ export class NetworkHandler {
             hasChanges = true;
         }
         
+        // #region agent log
+        const hullAngleDiff = Math.abs(data.hullAngle - this.lastSentState.hullAngle);
+        const hullAngleDiffCircular = Math.min(hullAngleDiff, 360 - hullAngleDiff);
+        const turretAngleDiff = Math.abs(data.turretAngle - this.lastSentState.turretAngle);
+        const turretAngleDiffCircular = Math.min(turretAngleDiff, 360 - turretAngleDiff);
+        // #endregion
         if (Math.abs(data.hullAngle - this.lastSentState.hullAngle) > threshold) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'network.js:96',message:'hullAngle delta compression',data:{last:this.lastSentState.hullAngle,current:data.hullAngle,diffLinear:hullAngleDiff,diffCircular:hullAngleDiffCircular,threshold,willSend:true},timestamp:Date.now(),sessionId:'debug-session',runId:'bug1-spinning',hypothesisId:'H1-angle'})}).catch(()=>{});
+            // #endregion
             delta.hullAngle = data.hullAngle;
             hasChanges = true;
         }
         
         if (Math.abs(data.turretAngle - this.lastSentState.turretAngle) > threshold) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'network.js:101',message:'turretAngle delta compression',data:{last:this.lastSentState.turretAngle,current:data.turretAngle,diffLinear:turretAngleDiff,diffCircular:turretAngleDiffCircular,threshold,willSend:true},timestamp:Date.now(),sessionId:'debug-session',runId:'bug1-spinning',hypothesisId:'H1-angle'})}).catch(()=>{});
+            // #endregion
             delta.turretAngle = data.turretAngle;
             hasChanges = true;
         }
@@ -120,6 +135,9 @@ export class NetworkHandler {
         
         // Отправляем только если есть изменения
         if (hasChanges) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'network.js:122',message:'Sending delta',data:{deltaKeys:Object.keys(delta),delta},timestamp:Date.now(),sessionId:'debug-session',runId:'bug2-invisible',hypothesisId:'H2-invisible'})}).catch(()=>{});
+            // #endregion
             this.channel.send({
                 type: 'broadcast',
                 event: 'position',

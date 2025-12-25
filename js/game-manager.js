@@ -16,6 +16,7 @@ export class GameManager {
         this.renderer = new Renderer(this.playfield); // На самом деле в world, Renderer создаст его
         this.input = new InputHandler();
         
+        this.lastFrameTime = null;
         this.playerTank = null;
         this.enemyTank = null; // В мультиплеере это другой игрок
         this.bullets = [];
@@ -192,11 +193,17 @@ export class GameManager {
     }
 
     handleRemotePlayerUpdate(data) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game-manager.js:194',message:'handleRemotePlayerUpdate entry',data:{dataId:data?.id,enemyPlayerId:this.enemyPlayerId,hasEnemyTank:!!this.enemyTank,dataKeys:data?Object.keys(data):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'bug2-invisible',hypothesisId:'H2-invisible'})}).catch(()=>{});
+        // #endregion
         // Детерминированная проверка: обрабатываем только сообщения от противника
         // Игнорируем сообщения с неправильным ID или от самих себя
         if (!data.id || data.id !== this.enemyPlayerId) return;
 
         if (!this.enemyTank) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game-manager.js:199',message:'Creating enemy tank',data:{x:data.x,y:data.y,hullAngle:data.hullAngle,turretAngle:data.turretAngle,hasX:data.x!==undefined,hasY:data.y!==undefined,hasHull:data.hullAngle!==undefined,hasTurret:data.turretAngle!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'bug2-invisible',hypothesisId:'H2-invisible'})}).catch(()=>{});
+            // #endregion
             this.enemyName = data.name || 'Enemy';
             console.log(`Enemy connected: ${this.enemyName} (${data.id})`);
             
@@ -232,10 +239,19 @@ export class GameManager {
         
         // Обновляем целевые значения для интерполяции (вместо мгновенного применения)
         // Delta compression - обновляем только переданные поля
+        // #region agent log
+        const beforeHull = this.enemyTank.targetHullAngle;
+        const beforeTurret = this.enemyTank.targetTurretAngle;
+        // #endregion
         if (data.x !== undefined) this.enemyTank.targetX = data.x;
         if (data.y !== undefined) this.enemyTank.targetY = data.y;
         if (data.hullAngle !== undefined) this.enemyTank.targetHullAngle = data.hullAngle;
         if (data.turretAngle !== undefined) this.enemyTank.targetTurretAngle = data.turretAngle;
+        // #region agent log
+        if (data.hullAngle !== undefined || data.turretAngle !== undefined) {
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game-manager.js:237',message:'Updating target angles',data:{receivedHull:data.hullAngle,receivedTurret:data.turretAngle,beforeHull,afterHull:this.enemyTank.targetHullAngle,beforeTurret,afterTurret:this.enemyTank.targetTurretAngle,currentHull:this.enemyTank.hullAngle,currentTurret:this.enemyTank.turretAngle},timestamp:Date.now(),sessionId:'debug-session',runId:'bug1-spinning',hypothesisId:'H1-angle'})}).catch(()=>{});
+        }
+        // #endregion
         
         // Здоровье и состояние обновляем мгновенно (критичные данные)
         if (data.health !== undefined) this.enemyTank.health = data.health;
@@ -255,6 +271,12 @@ export class GameManager {
     }
 
     gameLoop(timestamp) {
+        // #region agent log
+        if (!this.lastFrameTime) this.lastFrameTime = timestamp;
+        const actualDelta = Math.min(0.05, (timestamp - this.lastFrameTime) / 1000);
+        this.lastFrameTime = timestamp;
+        fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game-manager.js:257',message:'gameLoop delta',data:{actualDelta,fixedDelta:0.016,timestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'bug3-speed',hypothesisId:'H3-speed'})}).catch(()=>{});
+        // #endregion
         const delta = 0.016; // Упрощенно 60fps
 
         // 1. Обработка ввода и обновление логики игрока
@@ -393,7 +415,11 @@ export class GameManager {
         // Интерполяция углов (с учетом кругового характера)
         const interpolateAngle = (current, target, speed) => {
             let diff = ((target - current + 540) % 360) - 180;
-            return (current + diff * speed * delta + 360) % 360;
+            const result = (current + diff * speed * delta + 360) % 360;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/35434178-285e-4bc7-b9d6-c16151f8a31b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'game-manager.js:394',message:'interpolateAngle',data:{current,target,diff,result,speed,delta},timestamp:Date.now(),sessionId:'debug-session',runId:'bug1-spinning',hypothesisId:'H1-angle'})}).catch(()=>{});
+            // #endregion
+            return result;
         };
         
         this.enemyTank.hullAngle = interpolateAngle(
